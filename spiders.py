@@ -1,8 +1,11 @@
 import scrapy
 from scrapy.crawler import CrawlerProcess
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from time import sleep
+
 import config
 
-DATA = ''
 
 class ForumSpider(scrapy.Spider):
     name = 'Forum-auto'
@@ -140,6 +143,72 @@ class AutoOptSpider(scrapy.Spider):
                     'location': '-',
                     'count': count
                 }
+
+
+class Autokontinent():
+    url = 'https://autokontinent.ru'
+    name = 'AutoKontinent'
+
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless=new")
+    driver = webdriver.Chrome(chrome_options=options, executable_path='chromedriver')
+
+    def __init__(self, spare):
+        self.spare = spare
+
+    def parse(self):
+        self.driver.get(self.url)
+        click = self.driver.find_element('id', 'auth_link')
+        click.click()
+        login = self.driver.find_element('name', 'login')
+        login.send_keys(config.autocontinent_login)
+        password = self.driver.find_element('name', 'password')
+        password.send_keys(config.autocontinent_password)
+        button1 = self.driver.find_element('xpath', '//*[@id="ak_panel_1"]/form/input[3]')
+        sleep(1)
+        button1.click()
+        sleep(1)
+        button2 = self.driver.find_element('xpath', '//*[@id="login_state"]/form/div[2]/div[2]/input[1]')
+        button2.click()
+        sleep(1)
+        search = self.driver.find_element('id', 'h_seek_input')
+        search.send_keys(self.spare)
+        sleep(1)
+        search.send_keys(Keys.ENTER)
+        sleep(1)
+        all_elements = self.driver.find_elements('tag name', 'tr')
+        for num, elements in enumerate(all_elements):
+            if num == 0:
+                continue
+            position = elements.find_elements('tag name', 'td')
+            try:
+                name_brand = position[0].find_elements('tag name', 'div')
+                name = name_brand[5].get_attribute('innerHTML')
+                brend = name_brand[3].get_attribute('innerHTML')
+                article = name_brand[2].get_attribute('innerHTML')
+
+                count = position[2].get_attribute('innerHTML')
+                location = position[4].get_attribute('innerHTML')
+                price = position[5].get_attribute('innerHTML')
+
+            except:
+                name_brand = all_elements[num-1].find_elements('tag name', 'div')
+                name = name_brand[5].get_attribute('innerHTML')
+                brend = name_brand[3].get_attribute('innerHTML')
+                article = name_brand[2].get_attribute('innerHTML')
+
+                count = position[1].get_attribute('innerHTML')
+                location = position[3].get_attribute('innerHTML')
+                price = position[4].get_attribute('innerHTML')
+            yield {
+                    'store': self.name,
+                    'article': article,
+                    'brend': brend,
+                    'name': name,
+                    'price': price,
+                    'location': location,
+                    'count': count
+                    }
 
 
 

@@ -35,14 +35,16 @@ def submit():
         SPARE = s
         output_data.clear()
 
+
         return redirect(url_for('scrape'))
 
 
 @app.route("/scrape")
 def scrape():
-
+    parser = spiders.Autokontinent(spare=SPARE)
+    [output_data.append(el) for el in parser.parse()]
     scrape_with_crochet(spare=SPARE)
-    time.sleep(10) 
+    time.sleep(5) 
     desired_value = list()
     similar_value = list()
     avail = False
