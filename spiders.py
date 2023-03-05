@@ -6,6 +6,39 @@ from time import sleep
 
 import config
 
+def formation(data_spare, spare):
+    desired_value = list()
+    similar_value = list()
+    avail = False
+    store = ('Autoopt', 'AutoKontinent', 'Forum-auto')
+    def raw_string(string):
+        return (string.replace('_', '').replace(' ', '').replace('-', '').replace('/', '')).lower()
+
+    for data in data_spare:
+        if raw_string(spare) == raw_string(data['article']) or data['article'] == 'Отсутствует': 
+            desired_value.append(data)
+        else:
+            similar_value.append(data)
+    for data in desired_value:
+        if data['article'] != 'Отсутствует':
+            avail = True
+    for st in store:
+        if st not in [data['store'] for data in desired_value]:
+                desired_value.append({
+                    'store': st,
+                    'article': 'Отсутствует',
+                    'brend': '-',
+                    'name': '-',
+                    'price': '-',
+                    'location': '-',
+                    'count': '-'
+                })
+    return desired_value, similar_value, avail
+    
+            
+    
+
+
 
 class ForumSpider(scrapy.Spider):
     name = 'Forum-auto'
@@ -33,7 +66,7 @@ class ForumSpider(scrapy.Spider):
             )
         
     def parsing(self, response):
-        if response.xpath('//div[@id="effect"]//tr') == []:
+        '''if response.xpath('//div[@id="effect"]//tr') == []:
             yield {
                     'store': self.name,
                     'article': 'Отсутствует', 
@@ -42,7 +75,7 @@ class ForumSpider(scrapy.Spider):
                     'price': '-', 
                     'location': '-',
                     'count': '-'
-                } 
+                } '''
         for res in response.xpath('//div[@id="effect"]//tr'):
             data = res.get()
             article = scrapy.Selector(text=data).xpath('//td[@class="td2"]/text()').get()
@@ -100,7 +133,7 @@ class AutoOptSpider(scrapy.Spider):
         )
 
     def parsing(self, response):
-        if response.xpath('//div[@class="n-catalog-item relative grid-item n-catalog-item__product"]') == []:
+        '''if response.xpath('//div[@class="n-catalog-item relative grid-item n-catalog-item__product"]') == []:
             yield {
                     'store': self.name,
                     'article': 'Отсутствует', 
@@ -109,7 +142,7 @@ class AutoOptSpider(scrapy.Spider):
                     'price': '-', 
                     'location': '-',
                     'count': '-'
-                } 
+                } '''
         for res in response.xpath('//div[@class="n-catalog-item relative grid-item n-catalog-item__product"]'):
             data = res.get()
             code = scrapy.Selector(text=data).xpath('//span[@class="string bold n-catalog-item__click-copy"]/text()').get()
@@ -157,58 +190,76 @@ class Autokontinent():
         self.spare = spare
 
     def parse(self):
-        self.driver.get(self.url)
-        click = self.driver.find_element('id', 'auth_link')
-        click.click()
-        login = self.driver.find_element('name', 'login')
-        login.send_keys(config.autocontinent_login)
-        password = self.driver.find_element('name', 'password')
-        password.send_keys(config.autocontinent_password)
-        button1 = self.driver.find_element('xpath', '//*[@id="ak_panel_1"]/form/input[3]')
-        sleep(1)
-        button1.click()
-        sleep(1)
-        button2 = self.driver.find_element('xpath', '//*[@id="login_state"]/form/div[2]/div[2]/input[1]')
-        button2.click()
-        sleep(1)
-        search = self.driver.find_element('id', 'h_seek_input')
-        search.send_keys(self.spare)
-        sleep(1)
-        search.send_keys(Keys.ENTER)
-        sleep(1)
-        all_elements = self.driver.find_elements('tag name', 'tr')
-        for num, elements in enumerate(all_elements):
-            if num == 0:
-                continue
-            position = elements.find_elements('tag name', 'td')
-            try:
-                name_brand = position[0].find_elements('tag name', 'div')
-                name = name_brand[5].get_attribute('innerHTML')
-                brend = name_brand[3].get_attribute('innerHTML')
-                article = name_brand[2].get_attribute('innerHTML')
+        try:
+            self.driver.get(self.url)
+            click = self.driver.find_element('id', 'auth_link')
+            click.click()
+            login = self.driver.find_element('name', 'login')
+            login.send_keys(config.autocontinent_login)
+            password = self.driver.find_element('name', 'password')
+            password.send_keys(config.autocontinent_password)
+            button1 = self.driver.find_element('xpath', '//*[@id="ak_panel_1"]/form/input[3]')
+            sleep(1)
+            button1.click()
+            sleep(1)
+            button2 = self.driver.find_element('xpath', '//*[@id="login_state"]/form/div[2]/div[2]/input[1]')
+            button2.click()
+            sleep(1)
+            print('Залогинился')
+        except:
+            print('Ошибка авторизации')
+        try:     
+            search = self.driver.find_element('id', 'h_seek_input')
+            search.send_keys(self.spare)
+            sleep(1)
+            search.send_keys(Keys.ENTER)
+            sleep(1)
+            all_elements = self.driver.find_elements('tag name', 'tr')
+            for num, elements in enumerate(all_elements):
+                if num == 0:
+                    continue
+                position = elements.find_elements('tag name', 'td')
+                try:
+                    name_brand = position[0].find_elements('tag name', 'div')
+                    name = name_brand[5].get_attribute('innerHTML')
+                    brend = name_brand[3].get_attribute('innerHTML')
+                    article = name_brand[2].get_attribute('innerHTML')
 
-                count = position[2].get_attribute('innerHTML')
-                location = position[4].get_attribute('innerHTML')
-                price = position[5].get_attribute('innerHTML')
+                    count = position[2].get_attribute('innerHTML')
+                    location = position[4].get_attribute('innerHTML')
+                    price = position[5].get_attribute('innerHTML')
 
-            except:
-                name_brand = all_elements[num-1].find_elements('tag name', 'div')
-                name = name_brand[5].get_attribute('innerHTML')
-                brend = name_brand[3].get_attribute('innerHTML')
-                article = name_brand[2].get_attribute('innerHTML')
+                except:
+                    name_brand = all_elements[num-1].find_elements('tag name', 'div')
+                    name = name_brand[5].get_attribute('innerHTML')
+                    brend = name_brand[3].get_attribute('innerHTML')
+                    article = name_brand[2].get_attribute('innerHTML')
 
-                count = position[1].get_attribute('innerHTML')
-                location = position[3].get_attribute('innerHTML')
-                price = position[4].get_attribute('innerHTML')
+                    count = position[1].get_attribute('innerHTML')
+                    location = position[3].get_attribute('innerHTML')
+                    price = position[4].get_attribute('innerHTML')
+                if count == '&gt;10 шт':
+                    count = '>10 шт.'
+                yield {
+                        'store': self.name,
+                        'article': article,
+                        'brend': brend,
+                        'name': name,
+                        'price': price,
+                        'location': location,
+                        'count': count
+                        }
+        except:
+            pass
+            '''print('Ненаход)))0))')
             yield {
-                    'store': self.name,
-                    'article': article,
-                    'brend': brend,
-                    'name': name,
-                    'price': price,
-                    'location': location,
-                    'count': count
-                    }
+                'store': self.name,
+                'article': 'Отсутствует',
+                'brend': '-',
+                'name': '-',
+                'price': '-',
+                'location': '-',
+                'count': '-'}'''
 
 
 

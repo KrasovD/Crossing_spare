@@ -23,6 +23,13 @@ crochet.setup()
 output_data = []
 crawl_runner = CrawlerRunner()
 
+
+"""
+PAG100
+F002DG1649
+43823-5K000
+SK-4270056-01
+"""
 @app.route('/')
 def index():
 	return render_template("home.html") 
@@ -45,17 +52,9 @@ def scrape():
     [output_data.append(el) for el in parser.parse()]
     scrape_with_crochet(spare=SPARE)
     time.sleep(5) 
-    desired_value = list()
-    similar_value = list()
-    avail = False
-    for data in output_data:
-        if SPARE in data['article'] or data['article'] == 'Отсутствует': 
-            desired_value.append(data)
-        else:
-            similar_value.append(data)
-    for data in desired_value:
-        if data['article'] != 'Отсутствует':
-            avail = True
+
+    desired_value, similar_value, avail = spiders.formation(data_spare=output_data, spare=SPARE)
+    
     if avail:
         spare = model.Log(
             spare=SPARE
