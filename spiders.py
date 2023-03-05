@@ -27,11 +27,11 @@ def formation(data_spare, spare):
                 desired_value.append({
                     'store': st,
                     'article': 'Отсутствует',
-                    'brend': '-',
-                    'name': '-',
-                    'price': '-',
-                    'location': '-',
-                    'count': '-'
+                    'brend': '',
+                    'name': '',
+                    'price': '',
+                    'location': '',
+                    'count': ''
                 })
     return desired_value, similar_value, avail
     
@@ -66,16 +66,6 @@ class ForumSpider(scrapy.Spider):
             )
         
     def parsing(self, response):
-        '''if response.xpath('//div[@id="effect"]//tr') == []:
-            yield {
-                    'store': self.name,
-                    'article': 'Отсутствует', 
-                    'brend': '-', 
-                    'name': '-',
-                    'price': '-', 
-                    'location': '-',
-                    'count': '-'
-                } '''
         for res in response.xpath('//div[@id="effect"]//tr'):
             data = res.get()
             article = scrapy.Selector(text=data).xpath('//td[@class="td2"]/text()').get()
@@ -133,16 +123,6 @@ class AutoOptSpider(scrapy.Spider):
         )
 
     def parsing(self, response):
-        '''if response.xpath('//div[@class="n-catalog-item relative grid-item n-catalog-item__product"]') == []:
-            yield {
-                    'store': self.name,
-                    'article': 'Отсутствует', 
-                    'brend': '-', 
-                    'name': '-',
-                    'price': '-', 
-                    'location': '-',
-                    'count': '-'
-                } '''
         for res in response.xpath('//div[@class="n-catalog-item relative grid-item n-catalog-item__product"]'):
             data = res.get()
             code = scrapy.Selector(text=data).xpath('//span[@class="string bold n-catalog-item__click-copy"]/text()').get()
@@ -173,7 +153,7 @@ class AutoOptSpider(scrapy.Spider):
                     'brend': brend, 
                     'name': name,
                     'price': price, 
-                    'location': '-',
+                    'location': '',
                     'count': count
                 }
 
@@ -224,9 +204,10 @@ class Autokontinent():
                     name = name_brand[5].get_attribute('innerHTML')
                     brend = name_brand[3].get_attribute('innerHTML')
                     article = name_brand[2].get_attribute('innerHTML')
-
                     count = position[2].get_attribute('innerHTML')
                     location = position[4].get_attribute('innerHTML')
+                    if '<!--' in location:
+                        location = location.split('<!--')[0]
                     price = position[5].get_attribute('innerHTML')
 
                 except:
@@ -234,9 +215,10 @@ class Autokontinent():
                     name = name_brand[5].get_attribute('innerHTML')
                     brend = name_brand[3].get_attribute('innerHTML')
                     article = name_brand[2].get_attribute('innerHTML')
-
                     count = position[1].get_attribute('innerHTML')
                     location = position[3].get_attribute('innerHTML')
+                    if '<!--' in location:
+                        location = location.split('<!--')[0]
                     price = position[4].get_attribute('innerHTML')
                 if count == '&gt;10 шт':
                     count = '>10 шт.'
@@ -251,15 +233,6 @@ class Autokontinent():
                         }
         except:
             pass
-            '''print('Ненаход)))0))')
-            yield {
-                'store': self.name,
-                'article': 'Отсутствует',
-                'brend': '-',
-                'name': '-',
-                'price': '-',
-                'location': '-',
-                'count': '-'}'''
 
 
 

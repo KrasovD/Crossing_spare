@@ -1,13 +1,14 @@
 import crochet
 from flask_bootstrap import Bootstrap5
 from flask_sqlalchemy import SQLAlchemy
-from flask import Flask , render_template, request, redirect, url_for
+from flask import Flask , render_template, request, redirect, url_for, send_from_directory
 from scrapy import signals
 from scrapy.crawler import CrawlerRunner
 from scrapy.signalmanager import dispatcher
 import time
 
 import spiders
+import function
 
 app = Flask(__name__)
 
@@ -16,20 +17,13 @@ bootstrap = Bootstrap5(app)
 db = SQLAlchemy()
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///log.db"
 db.init_app(app)
-#SQLAlchemy(app)
+
 import model
 
 crochet.setup()
 output_data = []
 crawl_runner = CrawlerRunner()
 
-
-"""
-PAG100
-F002DG1649
-43823-5K000
-SK-4270056-01
-"""
 @app.route('/')
 def index():
 	return render_template("home.html") 
@@ -48,26 +42,65 @@ def submit():
 
 @app.route("/scrape")
 def scrape():
-    parser = spiders.Autokontinent(spare=SPARE)
-    [output_data.append(el) for el in parser.parse()]
-    scrape_with_crochet(spare=SPARE)
-    time.sleep(5) 
+    try:
+        parser = spiders.Autokontinent(spare=SPARE)
+        [output_data.append(el) for el in parser.parse()]
+        scrape_with_crochet(spare=SPARE)
+        time.sleep(5)
+        desired_value, similar_value, avail = spiders.formation(data_spare=output_data, spare=SPARE)
+        if avail:
+            spare = model.Log(
+                spare=SPARE
+            )
+            db.session.add(spare)
+            db.session.commit()
+        return render_template('table.html', 
+                            spare = SPARE,
+                            desired_value=desired_value, 
+                            similar_value=similar_value
+                            )
+    except Exception as e:
+        print(e)
+        redirect(url_for(''))
 
-    desired_value, similar_value, avail = spiders.formation(data_spare=output_data, spare=SPARE)
-    
-    if avail:
-        spare = model.Log(
-            spare=SPARE
-        )
-        db.session.add(spare)
-        db.session.commit()
-    return render_template('table.html', 
-                           spare = SPARE,
-                           desired_value=desired_value, 
-                           similar_value=similar_value
+@app.errorhandler(500)
+def page_not_found(e):
+    return render_template('500.html')
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html')  
+
+@app.route('/top_requests/<count>')
+def view_top_requests(count):
+    request = function.top_requests(db.session, count)
+    return render_template('requests.html', 
+                           count=count, 
+                           top_requests=request, 
+                           name_table='Топ запросов (месяц)'
                            )
-  
-  
+
+@app.route('/latest_requests/<count>')
+def view_latest_requests(count):
+    request = function.latest_requests(db.session, count)
+    return render_template('requests.html', 
+                           count=count, 
+                           top_requests=request,
+                           name_table='Последние запросы'
+                           )
+
+@app.route('/export_to_excel', methods=['GET']) 
+def export_to_excel():
+    try:
+        if output_data:
+            function.export_to_excel(output_data, SPARE)
+            return send_from_directory('uploads', 'request_excel.xlsx')
+    except Exception as e:
+        print(e)
+        return redirect(url_for(''))
+
+
+
 @crochet.run_in_reactor
 def scrape_with_crochet(spare):
     dispatcher.connect(_crawler_result, signal=signals.item_scraped)
