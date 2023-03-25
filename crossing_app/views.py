@@ -1,47 +1,24 @@
 import crochet
 from flask import render_template, request, redirect, url_for, send_from_directory
+from sqlalchemy import func
 from scrapy import signals
 from scrapy.crawler import CrawlerRunner
 from scrapy.signalmanager import dispatcher
 import time
+from datetime import timedelta
 import configparser
 from crossing_app import app, db
 from crossing_app.spiders import Autokontinent_spiders, formation, ForumSpider, AutoOptSpider
 from crossing_app.model import *
 from crossing_app.function import export_to_excel
+import pandas
+import csv
 
 crochet.setup()
 output_data = []
 crawl_runner = CrawlerRunner()
 
-@app.route('/', methods=['GET'])
-def index():
-    return render_template("home.html") 
-        
-@app.route('/search')
-def search():
-    search = request.args.get('search')
-    def format_text(text):
-        return text.replace('/','_').replace('-','_')
-    data_list = list()
-    for item in Autokontinent.query.filter(Autokontinent.article_number.like('%{}%'.format(format_text(search)))).limit(50).all():
-        data_list.append(item)
-        item.store = 'Autokontinent'
-    for item in Autoopt.query.filter(Autoopt.article_number.like('%{}%'.format(format_text(search)))).limit(50).all():
-        data_list.append(item)
-        item.store = 'Autoopt'
-    for item in Forum.query.filter(Forum.article_number.like('%{}%'.format(format_text(search)))).limit(50).all():
-        data_list.append(item)
-        item.store = 'Forum-auto'
-    return render_template('table.html', 
-                            spare = search,
-                            desired_value=data_list
-                            )
-
-
-@app.route('/database')
-def database():
-    autokontinent_category = [
+autokontinent_category = [
         {'name': 'Замки мотоцепей', 'url': 'https://autokontinent.ru/catalog_lock.php'},
         {'name': 'Инструменты', 'url': 'https://autokontinent.ru/catalog_tools.php'},
         {'name': 'Автохимия', 'url': 'https://autokontinent.ru/catalog_chemical.php'},
@@ -61,7 +38,7 @@ def database():
         {'name': 'Эксплуатационные масла и жидкости', 'url': 'https://autokontinent.ru/catalog_liquid.php'},
     ]
 
-    autoopt_category = [
+autoopt_category = [
         {'name': 'Отечественные грузовики', 'url': 'https://www.autoopt.ru/catalog/otechestvennye_gruzoviki/'},
         {'name': 'Европейские грузовики', 'url': 'https://www.autoopt.ru/catalog/evropeyskie_gruzoviki/'},
         {'name': 'Корейские грузовики', 'url': 'https://www.autoopt.ru/catalog/koreyskie_gruzoviki/'},
@@ -75,7 +52,7 @@ def database():
         {'name': 'Кабины, кузова и рамы', 'url': 'https://www.autoopt.ru/catalog/kabiny_kuzova_i_ramy/'},
     ]
 
-    forum_category = [
+forum_category = [
         {'name': 'Аккумуляторы', 'value': '81'},
         {'name': 'Аксессуары', 'value': '83'},
         {'name': 'Антифриз', 'value': '106'},
@@ -95,13 +72,83 @@ def database():
         {'name': 'Незамерзайка', 'value': '110'},
         {'name': 'Средства по уходу за авто', 'value': '115'},
     ]
-    
-    return render_template(
-        'database.html', 
-        autokontinent_category=autokontinent_category,
-        autoopt_category=autoopt_category,
-        forum_category=forum_category
-        )
+
+
+@app.route('/', methods=['GET'])
+def index():
+    return render_template("home.html") 
+        
+@app.route('/search')
+def search():
+    search = request.args.get('search')
+    def format_text(text):
+        return text.replace('/','_').replace('-','_')
+    similar_list = ''
+    desired_list = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).filter(Spare_parts.article_number.like('%{}%'.format(format_text(search)))).limit(50).all()
+    if desired_list != []:
+        db.session.add(Log(spare=search))
+        db.session.commit()
+    for spare, avail in desired_list:
+        #db.session.execute('pg_trgm.similarity_threshold (0.7)')
+        similar_list = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).filter(Spare_parts.category == spare.category, func.similarity(Spare_parts.name, spare.name) > 0.5).limit(15).all()
+    return render_template('result_search.html', 
+                            spare = search,
+                            desired_value=desired_list,
+                            similar_value=similar_list
+                            )
+
+
+@app.route('/database')
+def database():
+    config = configparser.ConfigParser()
+    config.read('crossing_app/files/details.cfg')
+    date_parsing = config['Parsing']['date_parsing']
+
+    if date_parsing == datetime.now().date().strftime('%d.%m'):
+        return render_template(
+            'database.html', 
+            date_parsing=date_parsing,
+            parsing=False
+            )
+    else:
+        return render_template(
+            'database.html', 
+            parsing=True,
+            date_parsing=date_parsing,
+            autokontinent_category=autokontinent_category,
+            autoopt_category=autoopt_category,
+            forum_category=forum_category
+            )
+
+@app.route('/database/download/<format>', methods=['POST'])
+def db_download(format):
+    if request.method == 'POST':
+        if format == 'csv':
+            spare = db.session.query(Spare_parts).join(Available, Spare_parts.id==Available.spare_parts_id).all()
+            with open('crossing_app/uploads/database.csv') as csv_db:
+                csvwriter = csv.writer(csv_db, delimiter=';')
+                csvwriter.writerow([])
+                for element in spare:
+                    csvwriter.writerow([])
+            return send_from_directory('crossing_app/uploads', 'database.csv')
+        if format == 'xls':
+            spare = db.session.query(Spare_parts).join(Available, Spare_parts.id==Available.spare_parts_id).all()
+            data_dict = dict()
+            headers = ['Магазин', 'Артикул', 'Бренд', 'Название', 'Цена', 'Склад', 'Количество']
+            for num in range(headers):
+                data_dict[headers[num]] = list()
+            for row in spare:
+                data_dict['Магазин'].append(row['store'])
+                data_dict['Артикль'].append(row['article'])
+                data_dict['Бренд'].append(row['brend'])
+                data_dict['Название'].append(row['name'])
+                data_dict['Цена'].append(row['price'])
+                data_dict['Склад'].append(row['location'])
+                data_dict['Количество'].append(row['count'])
+
+            df = pandas.DataFrame(data_dict)
+            df.to_excel('crossing_app/uploads/database.xlsx')
+            return send_from_directory('crossing_app/uploads', 'database.xlsx')
 
 
 @app.route('/configuration', methods = ['POST'])
@@ -152,19 +199,21 @@ def page_not_found(e):
 
 @app.route('/top_requests/<count>')
 def view_top_requests(count):
-    request = function.top_requests(db.session, count)
+    month_ago = datetime.today() - timedelta(days=30)
+    data = db.session.query(Log.spare, func.count(Log.spare)).filter(Log.datetime > month_ago).group_by(Log.spare).order_by(func.count(Log.spare).desc()).limit(int(count)).all()
     return render_template('requests.html', 
                            count=count, 
-                           top_requests=request, 
+                           top_requests=data, 
                            name_table='Топ запросов (месяц)'
                            )
 
 @app.route('/latest_requests/<count>')
 def view_latest_requests(count):
-    request = function.latest_requests(db.session, count)
+    month_ago = datetime.today() - timedelta(days=30)
+    data = db.session.query(Log.spare, func.to_char(Log.datetime, 'DD.mm.yy HH:MM:SS')).filter(Log.datetime > month_ago).order_by(Log.datetime.desc()).limit(int(count)).all()
     return render_template('requests.html', 
                            count=count, 
-                           top_requests=request,
+                           top_requests=data,
                            name_table='Последние запросы'
                            )
 
@@ -173,7 +222,7 @@ def export_to_excel():
     try:
         if output_data:
             function.export_to_excel(output_data)
-            return send_from_directory('uploads', 'request_excel.xlsx')
+            return send_from_directory('crossinf_app/uploads', 'request_excel.xlsx')
     except Exception as e:
         print(e)
         return redirect(url_for(''))

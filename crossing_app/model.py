@@ -8,37 +8,23 @@ class Log(db.Model):
     spare = db.Column(db.String, nullable=False)
     datetime = db.Column(db.DateTime, default=now)
 
-class Autokontinent(db.Model): 
-    id = db.Column(db.Integer, primary_key=True) 
-    article_number = db.Column(db.String(50), nullable=True)
-    category = db.Column(db.String(50), nullable=True)
-    name = db.Column(db.Text, nullable=True)
-    brend = db.Column(db.String(50), nullable=True)
-    count = db.Column(db.String(50), nullable=True)
-    price = db.Column(db.String(50), nullable=True)
-    another_info = db.Column(db.Text, nullable=True)
-    
+class Spare_parts(db.Model):
+    id = db.Column(db.INTEGER, unique=True, primary_key=True, autoincrement=True)
+    name = db.Column(db.VARCHAR(300), nullable=True)
+    article_number = db.Column(db.VARCHAR(150), nullable=True)
+    another_info = db.Column(db.TEXT, nullable=True)
+    brend = db.Column(db.VARCHAR(300), nullable=True)
+    category = db.Column(db.VARCHAR(200), nullable=True)
 
-class Forum(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    article_number = db.Column(db.String(50), nullable=True)
-    category = db.Column(db.String(50), nullable=True)
-    name = db.Column(db.Text, nullable=True)
-    brend =  db.Column(db.String(50), nullable=True)
-    count = db.Column(db.String(50), nullable=True)
-    price = db.Column(db.String(50), nullable=True)
-    another_info = db.Column(db.Text, nullable=True) 
+class Available(db.Model):
+    id = db.Column(db.INTEGER, unique=True, primary_key=True, autoincrement=True)
+    spare_parts_id = db.Column(db.ForeignKey('spare_parts.id'))
+    count = db.Column(db.VARCHAR(100), nullable=True)
+    price = db.Column(db.VARCHAR(100), nullable=True)
+    location = db.Column(db.VARCHAR(100), nullable=True)
+    data_update = db.Column(db.DATE)
+    store = db.Column(db.VARCHAR(100), nullable=True)
 
-
-class Autoopt(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    article_number = db.Column(db.String(50), nullable=True)
-    category = db.Column(db.String(50), nullable=True)
-    name = db.Column(db.Text, nullable=True)
-    brend = db.Column(db.String(50), nullable=True)
-    count = db.Column(db.String(50), nullable=True)
-    price = db.Column(db.String(50), nullable=True)
-    another_info = db.Column(db.Text, nullable=True)
     
 try:
     with app.app_context():

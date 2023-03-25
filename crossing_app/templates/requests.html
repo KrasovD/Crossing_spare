@@ -21,15 +21,16 @@
         {% if name_table == 'Топ запросов (месяц)' %}
         <th scope="col">Количество</th>
         {% endif %}
+        {% if name_table == 'Последние запросы' %}
+        <th scope="col">Дата</th>
+        {% endif %}
       </tr>
     </thead>
     <tbody>
         {% for data in top_requests %}
       <tr>
         <td>{{ data[0] }}</td>
-        {% if name_table == 'Топ запросов (месяц)' %}
         <td>{{ data[1] }}</td>
-        {% endif %}
       </tr>
       {% endfor %}
 {% endblock %}
