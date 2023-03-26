@@ -2,4 +2,6 @@ venv
 __pycache__
 crossing_app/config.py
 crossing_app/__pycache__
-crossing_app/files
+crossing_app/files/*
+crossing_app/uploads/*
+crossing_app/files/configuration.cfg

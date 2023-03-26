@@ -40,7 +40,7 @@ class ForumParsing():
     def __init__(self, value) -> None:
         self.url = 'https://itrade.forum-auto.ru/shop/index.html'
         self.value = value
-        self.session = Session(create_engine("postgresql+psycopg2://crossing:{}@localhost/crossing_db".format(password_db)))
+        self.session = Session(create_engine("postgresql+psycopg2://crossing_db:{}@localhost/crossing_db".format(password_db)))
         self.category = 'all'
         self.count_elements = 0
         self.count_success = 0
@@ -202,7 +202,7 @@ class AutooptParsing():
         self.cookies = self.set_cookies()
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.69'}
         self.url = url
-        self.session = Session(create_engine("postgresql+psycopg2://crossing:{}@localhost/crossing_db".format(password_db)))
+        self.session = Session(create_engine("postgresql+psycopg2://crossing_db:{}@localhost/crossing_db".format(password_db)))
         self.category = 'all'
         self.count_elements = 0
         self.count_success = 0
@@ -344,15 +344,13 @@ class AutoOptLogin(scrapy.Spider):
         with open('crossing_app/files/cookies.cfg', 'w') as cfg:
             config.write(cfg)
         return {cookie[0]: cookie[1]}
-              
-        
-
+                    
 class AutokontinentSpider():
 
     def __init__(self, url) -> None:
         self.url = 'https://autokontinent.ru/'
         self.urls = [url]
-        self.session = Session(create_engine("postgresql+psycopg2://crossing:{}@localhost/crossing_db".format(password_db)))
+        self.session = Session(create_engine("postgresql+psycopg2://crossing_db:{}@localhost/crossing_db".format(password_db)))
         self.category = 'all'
         self.count_elements = 0
         self.count_success = 0
@@ -475,7 +473,7 @@ class AutokontinentSpider():
                     article_number = data['Артикул'],
                     brend = data['Бренд'],
                     name =  data['Наименование'],
-                    another_info = another_info,
+                    another_info = str(another_info),
                     category = self.category,
                     price = 'null',
                     count = count,
@@ -483,8 +481,8 @@ class AutokontinentSpider():
                         ))      
                 
                 self.count_success +=1
-            except:
-                pass
+            except Exception as e:
+                print(e)
 
     def page_v2(self, result_list):
         self.count_elements += len(result_list)
@@ -508,8 +506,8 @@ class AutokontinentSpider():
                         ))  
                 
                 self.count_success += 1
-            except:
-                pass
+            except Exception as e:
+                print(e)
             
 
     def parsing(self):
@@ -522,7 +520,7 @@ class AutokontinentSpider():
                 driver.find_element('xpath', '//*[@id="available_item"]').click()
                 sleep(3)
                 # названия позиций
-                soup = BeautifulSoup(driver.page_source, 'lxml')
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
                 result = soup.select('#result')
                 self.category = soup.select('.aside_caption')[0].get_text()
                 if len(result) !=0:
@@ -537,5 +535,4 @@ class AutokontinentSpider():
 
 
 if __name__ == '__main__':
-    
-    pass
+    Base.metadata.create_all(create_engine("postgresql+psycopg2://cross:{}@localhost/cross".format(password_db)))

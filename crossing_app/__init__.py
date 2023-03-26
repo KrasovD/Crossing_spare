@@ -6,7 +6,7 @@ from crossing_app.config  import *
 app = Flask(__name__)
 bootstrap = Bootstrap5(app)
 db = SQLAlchemy()
-app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{username_db}:{password_db}@localhost:5432/{database}"
+app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://crossing_db:{password_db}@localhost:5432/crossing_db"
 db.init_app(app)
 
 

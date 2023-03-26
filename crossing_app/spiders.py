@@ -3,6 +3,9 @@ from scrapy.crawler import CrawlerProcess
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from time import sleep
+import requests
+import configparser
+from bs4 import BeautifulSoup
 
 from crossing_app.config import *
 
@@ -10,23 +13,23 @@ def formation(data_spare, spare):
     desired_value = list()
     similar_value = list()
     avail = False
-    store = ('Autoopt', 'AutoKontinent', 'Forum-auto')
+    store = ('Autoopt', 'Autokontinent', 'Forum-auto')
     def raw_string(string):
         return (string.replace('_', '').replace(' ', '').replace('-', '').replace('/', '')).lower()
 
     for data in data_spare:
-        if raw_string(spare) == raw_string(data['article']) or data['article'] == 'Отсутствует': 
+        if raw_string(spare) == raw_string(data['article_number']) or data['article_number'] == 'Отсутствует': 
             desired_value.append(data)
         else:
             similar_value.append(data)
     for data in desired_value:
-        if data['article'] != 'Отсутствует':
+        if data['article_number'] != 'Отсутствует':
             avail = True
     for st in store:
         if st not in [data['store'] for data in desired_value]:
                 desired_value.append({
                     'store': st,
-                    'article': 'Отсутствует',
+                    'article_number': 'Отсутствует',
                     'brend': '',
                     'name': '',
                     'price': '',
@@ -36,66 +39,150 @@ def formation(data_spare, spare):
     return desired_value, similar_value, avail
     
             
+class ForumParsing():
+
+    def __init__(self, value) -> None:
+        self.url = 'https://itrade.forum-auto.ru/shop/index.html'
+        self.value = value
     
-class ForumSpider(scrapy.Spider):
-    name = 'Forum-auto'
-    start_urls = ['https://itrade.forum-auto.ru/shop/index']
+    def post(self, data):
+        session = requests.Session()
+        return session.post(self.url, cookies=self.set_cookies(), data=data, timeout=None)
+       
+    def set_cookies(self, cookies = True):
+        config = configparser.ConfigParser()
+        config.read('crossing_app/files/cookies.cfg')
+        if cookies:
+            return {'PHPSESSID': config['Forum']['phpsessid']}
+        else:   
+            form_data = {
+                    'login': forum_auto_login, 
+                    'password': forum_auto_password,
+                    'enter': r'%C2%EE%E9%F2%E8',
+                    'check': 'stopSpam'
+                }
+            sleep(10)
+            session = requests.Session()
+            session.post(self.url, data=form_data)
+            config['Forum'] = session.cookies
+            with open('crossing_app/files/cookies.cfg', 'w') as cfg:
+                    config.write(cfg)
+            sleep(2)
+            return session.cookies         
 
-    def __init__(self, spare='', **kwargs): # The category variable will have the input URL.
-        self.spare = spare
-        super().__init__(**kwargs)
+    def parsing_elements(self, page):
+        elements_list = page.select('.tr_r, .tr, .tr_sa', limit=None)
+        data = list()
+        for elements in elements_list:
+            if elements['class'] == ['header']:
+                continue
+            if elements['class'] != ['tr_hr']:
+                try:
+                    article_number = elements.select('[class=td2]')[0].get_text()
+                    brend = elements.select('[class=td3]')[0].get_text()
+                    try:
+                        name = elements.select('[class=td4]')[0].get_text(';').split(';')[0].replace('\n', ' ').replace('\xa0', '')
+                    except:
+                        name = elements.select('[class=td4]')[0].get_text(';').replace('\n', ' ').replace('\xa0', '')
+                    another_info = elements.select('[class=td5]')[0].get_text(';')
+                    price = elements.select('[class=td6]')[3].get_text('')
+                    count_loc = elements.select('[class=td7]')[0].get_text(';').split(';')
+                    count = count_loc[0]
+                    location = count_loc[1]              
+                    
+                    data.append(dict(
+                        article_number = article_number,
+                        brend = brend,
+                        name = name,
+                        store = 'Forum-auto',
+                        another_info = another_info,
+                        price = price,
+                        count = count,
+                        location = location
+                    ))
+                except Exception as e:
+                    pass
+        return data
+             
+    def parsing(self):
+        response = self.post({
+            'gr1': 999,
+            'gr2': 0,
+            'cat_num': self.value   
+        })
+        soup = BeautifulSoup(response.text, 'html.parser')
+        login = soup.select('.leftside')
+        if login != []:
+            page = soup.find(attrs={'name': 'to_basket'})
+            return self.parsing_elements(page)
+        else:  
+            self.set_cookies(False)
+            return self.parsing()
+    
+class AutooptParsing():
 
-    def parse(self, response):
-        yield scrapy.FormRequest.from_response(
-            response,
-            formname='enter',
-            formdata={'login': forum_auto_login, 'password': forum_auto_password},
-            callback=self.after_login
-        )
+    def __init__(self, value) -> None:
+        self.cookies = self.set_cookies()
+        self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.69'}
+        self.value = value
+    
+    def get(self, value):
+        session = requests.Session()
+        url = 'https://www.autoopt.ru/search/index'
+        return session.get(url, cookies=self.set_cookies(), params={'search': value}, timeout=None)
+       
+    def set_cookies(self, cookies = True):
+        config = configparser.ConfigParser(interpolation=None)
+        config.read('crossing_app/files/cookies.cfg')
+        if cookies:
+            return {'_identity': config['Autoopt']['_identity']}
+        else:   
+            import sys
+            from twisted.internet import reactor
+            from twisted.internet import default            
+            del sys.modules['twisted.internet.reactor']
+            default.install()   
+            crawl_runner = CrawlerProcess()
+            crawl_runner.crawl(AutoOptLogin)
+            crawl_runner.start()
+            return self.set_cookies()        
 
-
-    def after_login(self, response):
-        yield scrapy.FormRequest.from_response(
-            response,
-            formname='search',
-            formdata={'cat_num': self.spare},
-            callback=self.parsing
-            )
-        
-    def parsing(self, response):
-        for res in response.xpath('//div[@id="effect"]//tr'):
-            data = res.get()
-            article = scrapy.Selector(text=data).xpath('//td[@class="td2"]/text()').get()
-            brend = scrapy.Selector(text=data).xpath('//td[@class="td3"]/text()').get()
-            name = scrapy.Selector(text=data).xpath('//td[@class="td4"]/text()').get()
-            use = scrapy.Selector(text=data).xpath('//td[@class="td5"]/text()').get()
-            price = scrapy.Selector(text=data).xpath('//td[@class="td6"]//nobr/text()').getall()
+    def page_parsing(self, soup):
+        elements_list = soup.select('[class~=n-catalog-item__product]')
+        data = list()
+        for elements in elements_list:
             try:
-                price = price[1]
-            except:
+                article_number = elements.select('[class~=n-catalog-item__article]')[0].select('[class~=n-catalog-item__click-copy]')[0].get_text(';')
+                brend = elements.select('[class~=n-catalog-item__brand]')[0].get_text(';')
+                name = elements.select('[class~=n-catalog-item__name-link]')[0].get_text()
+                price = elements.select('[class~=n-catalog-item__price-box]')[0].select('span')[1].get_text()
+                count = elements.select('[class~=n-catalog-item__count-box]')[0].select('[class~=fake]')[0].get_text(';').split(';')
+                data.append(dict(
+                    article_number = article_number,
+                    brend = brend.split(';')[1].replace('\n', '').replace('  ', ''),
+                    name = name.replace('\n', '').replace('  ', ''),
+                    another_info = 'null',
+                    store = 'Autoopt',
+                    price = price,
+                    count = count[0].replace('\n', '').replace('  ', ''),
+                    location = 'null'
+                ))
+            except Exception as e:
                 pass
-            count = scrapy.Selector(text=data).xpath('//td[@class="td7"]//b/text()').get()
-            location = scrapy.Selector(text=data).xpath('//td[@class="td7"]/text()').get()
-            if article != None:
-                yield {
-                    'store': self.name,
-                    'article': article,
-                    'brend': brend,
-                    'name': name,
-                    'price': price,
-                    'location': location,
-                    'count': count
-                    }
-                        
+        return data
 
-class AutoOptSpider(scrapy.Spider):
-    name = 'Autoopt'
+    def parsing(self):
+        response = self.get(self.value)   
+        soup = BeautifulSoup(response.text, 'html.parser')
+        if soup.select('[class~=username]') != []:
+            return self.page_parsing(soup)       
+        else:
+            self.set_cookies(False)
+
+class AutoOptLogin(scrapy.Spider):
+    name = 'autoopt'
     start_urls = ['https://www.autoopt.ru/']
-
-    def __init__(self, spare='', **kwargs):
-        self.spare = spare
-        super().__init__(**kwargs)
-
+    
 
     def parse(self, response, **kwargs):
         token = response.xpath('//input[@name="_csrf"]/@value').get()
@@ -106,53 +193,118 @@ class AutoOptSpider(scrapy.Spider):
                       'LoginForm[password]': autoopt_password,
                       '_csrf': token,
                       },
-            callback=self.search
+            callback=self.set_cookies
         )
+    def set_cookies(self, response):
+        config = configparser.ConfigParser(interpolation=None)
+        config.read('crossing_app/files/cookies.cfg')
+        cookie = response.headers.getlist('Set-Cookie')[0].decode("utf-8").split(";")[0].split("=")
+        config['Autoopt'][cookie[0]] = cookie[1]
+        with open('crossing_app/files/cookies.cfg', 'w') as cfg:
+            config.write(cfg)
+        return {cookie[0]: cookie[1]}
+           
 
-    def search(self, response):
-        yield scrapy.FormRequest.from_response(
-            response,
-            formxpath='//form',
-            formdata={
-                'search': self.spare
-            },
-            callback=self.parsing
-        )
+class AutokontinentParsing():
 
-    def parsing(self, response):
-        for res in response.xpath('//div[@class="n-catalog-item relative grid-item n-catalog-item__product"]'):
-            data = res.get()
-            code = scrapy.Selector(text=data).xpath('//span[@class="string bold n-catalog-item__click-copy"]/text()').get()
-            get_brend = scrapy.Selector(text=data).xpath('//div[@class="n-catalog-item__brand d-none d-md-table-cell"]/text()').get()
-            article= scrapy.Selector(text=data).xpath('//span[@class="string bold nowrap n-catalog-item__click-copy"]/text()').get()
-            get_name = scrapy.Selector(text=data).xpath('//a[@class="n-catalog-item__name-link actions name-popover"]/text()').getall()
-            get_price = scrapy.Selector(text=data).xpath('//div[@class="n-catalog-item__price-box col-12 col-md pr-0 mb-2"]/product-list-prices').get()
-            get_count = scrapy.Selector(text=data).xpath('//a[@class="js-popover-wrapper popover-warehouses"]/span/span/text()').get()
+    def __init__(self, value) -> None:
+        self.url = 'https://autokontinent.ru/'
+        self.value = value
+
+    def start(self):
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless=new")
+        return webdriver.Chrome(chrome_options=options, executable_path='chromedriver')
+        #return webdriver.Chrome() # не фоновый режим
+
+    def login(self, cookies = True):
+        config = configparser.ConfigParser()
+        config.read('crossing_app/files/cookies.cfg')
+        if cookies:
             try:
-                brend = (get_brend.replace('  ', '')).replace('\n', '')
-                if brend == '':
-                    get_brend = scrapy.Selector(text=data).xpath('//a[@class="actions brand-popover"]/text()').get()
-                    brend = (get_brend.replace('  ', '')).replace('\n', '')
+                driver = self.start()
             except:
-                brend = '-'
-            name = (' '.join(get_name[1:3])).replace('  ', '')
-            prices = get_price.split(',')
-            price = (prices[4].split(':')[1] + ','+prices[5]).replace('"', '')
+                pass
+            driver.get(self.url)
+            driver.add_cookie({'name': 'ak_sid', 'value': config['Autokontinent']['ak_sid']})
+            driver.add_cookie({'name': 'ak_user', 'value': config['Autokontinent']['ak_user']})
+            return driver
+        else:
             try:
-                count = (get_count.replace('  ', '')).replace('\n', '')
+                driver = self.start()
             except:
-                count = scrapy.Selector(text=data).xpath('//a[@class="js-popover-wrapper popover-warehouses"]/span/text()').get()
-            
-            if article != None:
-                yield {
-                    'store': self.name,
-                    'article': article, 
-                    'brend': brend, 
-                    'name': name,
-                    'price': price, 
-                    'location': '',
-                    'count': count
-                }
+                pass
+            driver.get(self.url)
+            click = driver.find_element('id', 'auth_link')
+            click.click()
+            login = driver.find_element('name', 'login')
+            login.send_keys(autocontinent_login)
+            password = driver.find_element('name', 'password')
+            password.send_keys(autocontinent_password)
+            button1 = driver.find_element('xpath', '//*[@id="ak_panel_1"]/form/input[3]')
+            sleep(1)
+            button1.click()
+            sleep(1)
+            button2 = driver.find_element('xpath', '//*[@id="login_state"]/form/div[2]/div[2]/input[1]')
+            button2.click()
+            for value in driver.get_cookies():
+                config['Autokontinent'][value['name']] = value['value']
+            with open('crossing_app/files/cookies.cfg', 'w') as cfg:
+                    config.write(cfg)
+            return driver
+
+    def parsing(self):
+        driver = self.login() 
+        data = list()
+        try: 
+            driver.find_element('class name', 'h_login_state')
+            print('True')
+        except:
+            print('False')
+            driver = self.login(False)
+        search = driver.find_element('id', 'h_seek_input')
+        search.send_keys(self.value)
+        sleep(1)
+        search.send_keys(Keys.ENTER)
+        sleep(1)
+        all_elements = driver.find_elements('tag name', 'tr')
+        for num, elements in enumerate(all_elements):
+            if num == 0:
+                continue
+            position = elements.find_elements('tag name', 'td')
+            try:
+                name_brand = position[0].find_elements('tag name', 'div')
+                name = name_brand[5].get_attribute('innerHTML')
+                brend = name_brand[3].get_attribute('innerHTML')
+                article = name_brand[2].get_attribute('innerHTML')
+                count = position[2].get_attribute('innerHTML')
+                location = position[4].get_attribute('innerHTML')
+                if '<!--' in location:
+                    location = location.split('<!--')[0]
+                price = position[5].get_attribute('innerHTML')
+
+            except:
+                name_brand = all_elements[num-1].find_elements('tag name', 'div')
+                name = name_brand[5].get_attribute('innerHTML')
+                brend = name_brand[3].get_attribute('innerHTML')
+                article = name_brand[2].get_attribute('innerHTML')
+                count = position[1].get_attribute('innerHTML')
+                location = position[3].get_attribute('innerHTML')
+                if '<!--' in location:
+                    location = location.split('<!--')[0]
+                price = position[4].get_attribute('innerHTML')
+            if count == '&gt;10 шт':
+                count = '>10 шт.'
+            data.append({
+                'store': 'Autokontinent',
+                'article_number': article,
+                'brend': brend,
+                'name': name,
+                'price': price,
+                'location': location,
+                'count': count
+                })
+        return data
 
 
 class Autokontinent_spiders():

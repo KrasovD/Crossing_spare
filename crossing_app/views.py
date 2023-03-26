@@ -1,5 +1,5 @@
 import crochet
-from flask import render_template, request, redirect, url_for, send_from_directory
+from flask import render_template, request, redirect, url_for, send_from_directory, send_file
 from sqlalchemy import func
 from scrapy import signals
 from scrapy.crawler import CrawlerRunner
@@ -8,11 +8,11 @@ import time
 from datetime import timedelta
 import configparser
 from crossing_app import app, db
-from crossing_app.spiders import Autokontinent_spiders, formation, ForumSpider, AutoOptSpider
+from crossing_app.spiders import AutokontinentParsing, formation, ForumParsing, AutooptParsing
 from crossing_app.model import *
-from crossing_app.function import export_to_excel
 import pandas
 import csv
+import subprocess
 
 crochet.setup()
 output_data = []
@@ -89,8 +89,16 @@ def search():
         db.session.add(Log(spare=search))
         db.session.commit()
     for spare, avail in desired_list:
-        #db.session.execute('pg_trgm.similarity_threshold (0.7)')
-        similar_list = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).filter(Spare_parts.category == spare.category, func.similarity(Spare_parts.name, spare.name) > 0.5).limit(15).all()
+        if spare.name == 'null':
+            similar_list = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).filter(Spare_parts.category == spare.category, func.similarity(Spare_parts.another_info, spare.another_info) > 0.5).limit(15).all()
+        else:
+            #db.session.execute('pg_trgm.similarity_threshold (0.7)')
+            similar_list = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).filter(Spare_parts.category == spare.category, func.similarity(Spare_parts.name, spare.name) > 0.5).limit(15).all()
+        
+        similar_article = [spare.article_number for spare, avail in similar_list]
+        if spare.article_number in similar_article:
+            similar_list.pop(similar_article.index(spare.article_number))
+        
     return render_template('result_search.html', 
                             spare = search,
                             desired_value=desired_list,
@@ -122,33 +130,32 @@ def database():
 
 @app.route('/database/download/<format>', methods=['POST'])
 def db_download(format):
-    if request.method == 'POST':
         if format == 'csv':
-            spare = db.session.query(Spare_parts).join(Available, Spare_parts.id==Available.spare_parts_id).all()
-            with open('crossing_app/uploads/database.csv') as csv_db:
+            spare = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).all()
+            with open('crossing_app/uploads/database.csv', 'w') as csv_db:
                 csvwriter = csv.writer(csv_db, delimiter=';')
-                csvwriter.writerow([])
-                for element in spare:
-                    csvwriter.writerow([])
-            return send_from_directory('crossing_app/uploads', 'database.csv')
+                csvwriter.writerow(['store', 'article_number','brend', 'name', 'price', 'location', 'count'])
+                for spare, avail in spare:
+                    csvwriter.writerow([avail.store, spare.article_number, spare.brend, spare.name, avail.price, avail.location, avail.count])
+            return send_from_directory('uploads','database.csv')
         if format == 'xls':
-            spare = db.session.query(Spare_parts).join(Available, Spare_parts.id==Available.spare_parts_id).all()
+            spare = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).all()
             data_dict = dict()
             headers = ['Магазин', 'Артикул', 'Бренд', 'Название', 'Цена', 'Склад', 'Количество']
-            for num in range(headers):
-                data_dict[headers[num]] = list()
-            for row in spare:
-                data_dict['Магазин'].append(row['store'])
-                data_dict['Артикль'].append(row['article'])
-                data_dict['Бренд'].append(row['brend'])
-                data_dict['Название'].append(row['name'])
-                data_dict['Цена'].append(row['price'])
-                data_dict['Склад'].append(row['location'])
-                data_dict['Количество'].append(row['count'])
+            for head in headers:
+                data_dict[head] = list()
+            for spare, avail in spare:
+                data_dict['Магазин'].append(avail.store)
+                data_dict['Артикул'].append(spare.article_number)
+                data_dict['Бренд'].append(spare.brend)
+                data_dict['Название'].append(spare.name)
+                data_dict['Цена'].append(avail.price)
+                data_dict['Склад'].append(avail.location)
+                data_dict['Количество'].append(avail.count)
 
             df = pandas.DataFrame(data_dict)
             df.to_excel('crossing_app/uploads/database.xlsx')
-            return send_from_directory('crossing_app/uploads', 'database.xlsx')
+            return send_from_directory('uploads', 'database.xlsx')
 
 
 @app.route('/configuration', methods = ['POST'])
@@ -163,7 +170,11 @@ def configuration():
         config['Forum'] = {'value': str(forum_values)}
         with open('crossing_app/files/configuration.cfg', 'w') as cfg:
             config.write(cfg)
-        
+        subprocess.Popen(['venv/bin/python', 'runparsing.py'])
+        config = configparser.ConfigParser()
+        with open('crossing_app/files/details.cfg', 'w') as cfg:
+            config['Parsing'] = {'date_parsing': datetime.now().strftime('%d.%m')}
+            config.write(cfg)
         return redirect(url_for('database'))
 
 
@@ -172,8 +183,21 @@ def scrape():
     if request.method == 'POST':
         spare = request.form['scrape']
         output_data.clear()
-        scrape_with_crochet(spare=spare)
-        time.sleep(12)
+        forum = ForumParsing(spare)
+        try:
+            [output_data.append(el) for el in forum.parsing()]
+        except:
+            pass
+        autoopt = AutooptParsing(spare)
+        try:
+            [output_data.append(el) for el in autoopt.parsing()]
+        except:
+            pass
+        kontinent = AutokontinentParsing(spare)
+        try:
+            [output_data.append(el) for el in kontinent.parsing()]
+        except Exception as e:
+            print(e.with_traceback)
         desired_value, similar_value, avail = formation(data_spare=output_data, spare=spare)
         if avail:
             log = Log(
@@ -221,25 +245,31 @@ def view_latest_requests(count):
 def export_to_excel():
     try:
         if output_data:
-            function.export_to_excel(output_data)
-            return send_from_directory('crossinf_app/uploads', 'request_excel.xlsx')
+            data_dict = {
+                'Магазин': [],
+                'Артикль': [], 
+                'Бренд': [], 
+                'Название': [], 
+                'Цена': [], 
+                'Склад': [], 
+                'Количество': []
+            }
+            for row in output_data:
+                data_dict['Магазин'].append(row['store'])
+                data_dict['Артикль'].append(row['article_number'])
+                data_dict['Бренд'].append(row['brend'])
+                data_dict['Название'].append(row['name'])
+                data_dict['Цена'].append(row['price'])
+                data_dict['Склад'].append(row['location'])
+                data_dict['Количество'].append(row['count'])
+
+            df = pandas.DataFrame(data_dict)
+            df.to_excel('crossing_app/uploads/request_excel.xlsx')
+            return send_from_directory('uploads', 'request_excel.xlsx')
     except Exception as e:
         print(e)
-        return redirect(url_for(''))
+        return redirect(url_for('400'))
 
-
-
-@crochet.run_in_reactor
-def scrape_with_crochet(spare):
-    dispatcher.connect(_crawler_result, signal=signals.item_scraped)
-    eventual_forum = crawl_runner.crawl(ForumSpider, spare = spare)
-    eventual_autoopt = crawl_runner.crawl(AutoOptSpider, spare = spare)
-    parser = Autokontinent_spiders(spare=spare)
-    [output_data.append(el) for el in parser.parse()]
-    return eventual_forum, eventual_autoopt
-
-def _crawler_result(item, response, spider):
-    output_data.append(dict(item))
 
 
 if __name__== "__main__":

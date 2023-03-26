@@ -31,5 +31,5 @@ if __name__ == '__main__':
     autoopt = ast.literal_eval(config.get('Autoopt', 'url')) 
     kontinent =  ast.literal_eval(config.get('Autokontinent', 'url'))
     run_parsing(forum, 'Forum', ForumParsing)
-    #run_parsing(kontinent, 'Autokontinent', AutokontinentSpider)
-    #run_parsing(autoopt, 'AutoOpt', AutooptParsing)
+    run_parsing(kontinent, 'Autokontinent', AutokontinentSpider)
+    run_parsing(autoopt, 'AutoOpt', AutooptParsing)
