@@ -1,24 +1,27 @@
-import crochet
-from flask import render_template, request, redirect, url_for, send_from_directory, send_file
+from flask import render_template, request, redirect, url_for, send_from_directory
 from sqlalchemy import func
-from scrapy import signals
-from scrapy.crawler import CrawlerRunner
-from scrapy.signalmanager import dispatcher
 import time
 from datetime import timedelta
 import configparser
 from crossing_app import app, db
-from crossing_app.spiders import AutokontinentParsing, formation, ForumParsing, AutooptParsing
+from crossing_app.spiders import formation, ForumParsing, AutooptParsing
 from crossing_app.model import *
 import pandas
 import csv
 import subprocess
+from threading import Thread
 
-crochet.setup()
-output_data = []
-crawl_runner = CrawlerRunner()
+output_data = list()
 
-autokontinent_category = [
+def time_to_function(function):
+    def wrapped(*args):
+        start_time = time.perf_counter_ns()
+        res = function(*args)
+        print(time.perf_counter_ns() - start_time)
+        return res
+    return wrapped
+
+'''autokontinent_category = [
         {'name': 'Замки мотоцепей', 'url': 'https://autokontinent.ru/catalog_lock.php'},
         {'name': 'Инструменты', 'url': 'https://autokontinent.ru/catalog_tools.php'},
         {'name': 'Автохимия', 'url': 'https://autokontinent.ru/catalog_chemical.php'},
@@ -37,7 +40,7 @@ autokontinent_category = [
         {'name': 'Щетки стеклоочистителя', 'url': 'https://autokontinent.ru/catalog_wiper.php'},
         {'name': 'Эксплуатационные масла и жидкости', 'url': 'https://autokontinent.ru/catalog_liquid.php'},
     ]
-
+'''
 autoopt_category = [
         {'name': 'Отечественные грузовики', 'url': 'https://www.autoopt.ru/catalog/otechestvennye_gruzoviki/'},
         {'name': 'Европейские грузовики', 'url': 'https://www.autoopt.ru/catalog/evropeyskie_gruzoviki/'},
@@ -123,7 +126,7 @@ def database():
             'database.html', 
             parsing=True,
             date_parsing=date_parsing,
-            autokontinent_category=autokontinent_category,
+            #autokontinent_category=autokontinent_category,
             autoopt_category=autoopt_category,
             forum_category=forum_category
             )
@@ -161,11 +164,11 @@ def db_download(format):
 @app.route('/configuration', methods = ['POST'])
 def configuration():
     if request.method == 'POST':
-        autokontinent_values = request.form.getlist("autokontinent")
+        #autokontinent_values = request.form.getlist("autokontinent")
         autoopt_values = request.form.getlist("autoopt")
         forum_values = request.form.getlist("forum")
         config = configparser.ConfigParser()
-        config['Autokontinent'] = {'url': str(autokontinent_values)}
+        #config['Autokontinent'] = {'url': str(autokontinent_values)}
         config['Autoopt'] = {'url': str(autoopt_values)}
         config['Forum'] = {'value': str(forum_values)}
         with open('crossing_app/files/configuration.cfg', 'w') as cfg:
@@ -182,22 +185,24 @@ def configuration():
 def scrape():
     if request.method == 'POST':
         spare = request.form['scrape']
-        output_data.clear()
-        forum = ForumParsing(spare)
-        try:
+        def parse_forum(): 
+            forum = ForumParsing(spare)
             [output_data.append(el) for el in forum.parsing()]
-        except:
-            pass
-        autoopt = AutooptParsing(spare)
-        try:
+        def parse_autoot(): 
+            autoopt = AutooptParsing(spare)
             [output_data.append(el) for el in autoopt.parsing()]
-        except:
-            pass
-        kontinent = AutokontinentParsing(spare)
-        try:
-            [output_data.append(el) for el in kontinent.parsing()]
-        except Exception as e:
-            print(e.with_traceback)
+        thread1 = Thread(target=parse_forum)
+        thread2 = Thread(target=parse_autoot) 
+        start_time = time.perf_counter()
+        thread1.run()
+        thread2.run()
+        while True:
+            if thread1.is_alive() == True and thread2.is_alive() == True:
+                time.sleep(0.2)
+            else:
+                break
+        time_request = time.perf_counter() - start_time
+
         desired_value, similar_value, avail = formation(data_spare=output_data, spare=spare)
         if avail:
             log = Log(
@@ -206,9 +211,10 @@ def scrape():
             db.session.add(log)
             db.session.commit()
         return render_template('table.html', 
-                                spare = spare,
-                                desired_value=desired_value, 
-                                similar_value=similar_value
+                            time_request = round(time_request,1),
+                            spare = spare,
+                            desired_value=desired_value, 
+                            similar_value=similar_value
                                 )
     if request.method == 'GET':
         return render_template('table.html')

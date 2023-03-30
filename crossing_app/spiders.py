@@ -13,7 +13,7 @@ def formation(data_spare, spare):
     desired_value = list()
     similar_value = list()
     avail = False
-    store = ('Autoopt', 'Autokontinent', 'Forum-auto')
+    store = ('Autoopt', 'Forum-auto')
     def raw_string(string):
         return (string.replace('_', '').replace(' ', '').replace('-', '').replace('/', '')).lower()
 
@@ -37,8 +37,7 @@ def formation(data_spare, spare):
                     'count': ''
                 })
     return desired_value, similar_value, avail
-    
-            
+                
 class ForumParsing():
 
     def __init__(self, value) -> None:
@@ -61,13 +60,13 @@ class ForumParsing():
                     'enter': r'%C2%EE%E9%F2%E8',
                     'check': 'stopSpam'
                 }
-            sleep(10)
+            sleep(1)
             session = requests.Session()
             session.post(self.url, data=form_data)
             config['Forum'] = session.cookies
             with open('crossing_app/files/cookies.cfg', 'w') as cfg:
                     config.write(cfg)
-            sleep(2)
+            sleep(1)
             return session.cookies         
 
     def parsing_elements(self, page):
@@ -205,7 +204,7 @@ class AutoOptLogin(scrapy.Spider):
         return {cookie[0]: cookie[1]}
            
 
-class AutokontinentParsing():
+'''class AutokontinentParsing():
 
     def __init__(self, value) -> None:
         self.url = 'https://autokontinent.ru/'
@@ -214,6 +213,7 @@ class AutokontinentParsing():
     def start(self):
         options = webdriver.ChromeOptions()
         options.add_argument("--headless=new")
+        options.add_argument('--no-sandbox')
         return webdriver.Chrome(chrome_options=options, executable_path='chromedriver')
         #return webdriver.Chrome() # не фоновый режим
 
@@ -306,93 +306,6 @@ class AutokontinentParsing():
                 })
         return data
 
-
-class Autokontinent_spiders():
-    url = 'https://autokontinent.ru'
-    name = 'AutoKontinent'
-    def run(self):
-        options = webdriver.ChromeOptions()
-        options.add_argument("--headless=new")
-        return webdriver.Chrome(chrome_options=options, executable_path='chromedriver')
-
-    def __init__(self, spare):
-        self.spare = spare
-
-    def parse(self):
-        try:
-            driver = self.run()
-        except:
-            pass
-        try:
-            driver.get(self.url)
-            click = driver.find_element('id', 'auth_link')
-            click.click()
-            login = driver.find_element('name', 'login')
-            login.send_keys(autocontinent_login)
-            password = driver.find_element('name', 'password')
-            password.send_keys(autocontinent_password)
-            button1 = driver.find_element('xpath', '//*[@id="ak_panel_1"]/form/input[3]')
-            sleep(1)
-            button1.click()
-            sleep(1)
-            button2 = driver.find_element('xpath', '//*[@id="login_state"]/form/div[2]/div[2]/input[1]')
-            button2.click()
-            sleep(1)
-            print('Залогинился')
-        except:
-            print('Ошибка авторизации')
-        try:     
-            search = driver.find_element('id', 'h_seek_input')
-            search.send_keys(self.spare)
-            sleep(1)
-            search.send_keys(Keys.ENTER)
-            sleep(1)
-            all_elements = driver.find_elements('tag name', 'tr')
-            for num, elements in enumerate(all_elements):
-                if num == 0:
-                    continue
-                position = elements.find_elements('tag name', 'td')
-                try:
-                    name_brand = position[0].find_elements('tag name', 'div')
-                    name = name_brand[5].get_attribute('innerHTML')
-                    brend = name_brand[3].get_attribute('innerHTML')
-                    article = name_brand[2].get_attribute('innerHTML')
-                    count = position[2].get_attribute('innerHTML')
-                    location = position[4].get_attribute('innerHTML')
-                    if '<!--' in location:
-                        location = location.split('<!--')[0]
-                    price = position[5].get_attribute('innerHTML')
-
-                except:
-                    name_brand = all_elements[num-1].find_elements('tag name', 'div')
-                    name = name_brand[5].get_attribute('innerHTML')
-                    brend = name_brand[3].get_attribute('innerHTML')
-                    article = name_brand[2].get_attribute('innerHTML')
-                    count = position[1].get_attribute('innerHTML')
-                    location = position[3].get_attribute('innerHTML')
-                    if '<!--' in location:
-                        location = location.split('<!--')[0]
-                    price = position[4].get_attribute('innerHTML')
-                if count == '&gt;10 шт':
-                    count = '>10 шт.'
-                yield {
-                        'store': self.name,
-                        'article': article,
-                        'brend': brend,
-                        'name': name,
-                        'price': price,
-                        'location': location,
-                        'count': count
-                        }
-        except:
-            pass
-
-
-
+'''
 if __name__ == '__main__':
-    open("items.json","w").close()
-    process = CrawlerProcess(
-        settings={"FEEDS": {"items.json": {"format": "json"}}}
-        )
-    process.crawl(ForumSpider, spare='SRS 83SA40')
-    process.start()
+    pass

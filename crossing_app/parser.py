@@ -345,7 +345,7 @@ class AutoOptLogin(scrapy.Spider):
             config.write(cfg)
         return {cookie[0]: cookie[1]}
                     
-class AutokontinentSpider():
+'''class AutokontinentSpider():
 
     def __init__(self, url) -> None:
         self.url = 'https://autokontinent.ru/'
@@ -533,6 +533,6 @@ class AutokontinentSpider():
                 except:
                     print('Ошибка', url)
 
-
+'''
 if __name__ == '__main__':
     Base.metadata.create_all(create_engine("postgresql+psycopg2://cross:{}@localhost/cross".format(password_db)))
