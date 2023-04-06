@@ -134,7 +134,7 @@ def database():
 @app.route('/database/download/<format>', methods=['POST'])
 def db_download(format):
         if format == 'csv':
-            spare = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).all()
+            spare = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).yield_per(1000)
             with open('crossing_app/uploads/database.csv', 'w') as csv_db:
                 csvwriter = csv.writer(csv_db, delimiter=';')
                 csvwriter.writerow(['store', 'article_number','brend', 'name', 'price', 'location', 'count'])
@@ -142,7 +142,7 @@ def db_download(format):
                     csvwriter.writerow([avail.store, spare.article_number, spare.brend, spare.name, avail.price, avail.location, avail.count])
             return send_from_directory('uploads','database.csv')
         if format == 'xls':
-            spare = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).all()
+            spare = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).yield_per(1000)
             data_dict = dict()
             headers = ['Магазин', 'Артикул', 'Бренд', 'Название', 'Цена', 'Склад', 'Количество']
             for head in headers:

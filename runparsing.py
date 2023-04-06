@@ -10,16 +10,15 @@ def run_parsing(values, name: str, parser):
         try:
             parse = parser(value)
             parse.parsing()
-            config[name] = {value : '%d in %d, date: %s'% (
+            
+            config[name][value] = '%d in %d, date: %s'% (
                 parse.count_success,
                 parse.count_success,
                 datetime.now().strftime('%d.%m'))
-                }
             with open('crossing_app/files/log_parsing.cfg', 'w') as cfg:
                 config.write(cfg)
         except Exception as e:
-            config[name] = {'url': value,
-                                 'Ошибка': e}
+            config[name][value] = 'Ошибка %s'% e
             with open('crossing_app/files/log_parsing.cfg', 'w') as cfg:
                 config.write(cfg)
 

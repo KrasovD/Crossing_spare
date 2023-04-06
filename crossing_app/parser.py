@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy import Column, VARCHAR, INTEGER, DATE, TEXT, ForeignKey
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, update, insert, select
 from time import sleep
 from datetime import datetime
 from crossing_app.config import *
@@ -35,7 +35,69 @@ class Available(Base):
     location = Column(VARCHAR(100), nullable=True)
     data_update = Column(DATE)
 
-class ForumParsing():
+class BaseData():
+    def add_to_bd(self, item, store):
+        #поиск в бд по артикулу
+        spare_id = self.session.query(Spare_parts.id).filter(item['article_number'] == Spare_parts.article_number).all()
+        if spare_id:
+            # если артикул найлет, то поищем такую же позицию 
+            # в available по магазину и складу
+            available = update(Available).where(
+                    Available.spare_parts_id ==spare_id[0][0],
+                    Available.location==item['location'], 
+                    Available.store==store
+                    ).values(
+                        count=item['count'],
+                        price=item['price'],
+                        data_update=datetime.now()
+                    ).return_defaults(Available.id)
+            r = self.session.execute(available)
+            if r.returned_defaults == None:
+                available = Available(
+                    spare_parts_id=spare_id[0][0], 
+                    price=item['price'],
+                    count=item['count'],
+                    location=item['location'],
+                    store=store,
+                    data_update=datetime.now()
+                )
+                self.session.add(available)
+            try:
+                self.session.commit()
+            except:
+                self.session.rollback()
+                raise
+        else:
+            spare = Spare_parts(
+                article_number = item['article_number'],
+                brend = item['brend'],
+                name = item['name'],
+                category = item['category'],
+                another_info = item['another_info'],
+            )
+            self.session.add(spare)
+            try:
+                self.session.commit()
+            except:
+                self.session.rollback()
+                raise
+            spare_id = self.session.query(Spare_parts.id).filter(item['article_number'] == Spare_parts.article_number).all()[0]
+            available = Available(
+                spare_parts_id=spare_id[0], 
+                price=item['price'],
+                count=item['count'],
+                location=item['location'],
+                store=store,
+                data_update=datetime.now()
+            )
+            self.session.add(available)
+            try:
+                self.session.commit()
+            except:
+                self.session.rollback()
+                raise
+
+class ForumParsing(BaseData):
 
     def __init__(self, value) -> None:
         self.url = 'https://itrade.forum-auto.ru/shop/index.html'
@@ -70,56 +132,6 @@ class ForumParsing():
                     config.write(cfg)
             sleep(2)
             return session.cookies         
-
-    def add_to_bd(self, item):
-        try:
-            spare_id = self.session.query(Spare_parts.id).filter(item['article_number'] == Spare_parts.article_number).all()[0]
-        except Exception as e:
-            spare_id = False
-        if spare_id:
-            available = Available(
-                spare_parts_id=spare_id[0], 
-                price=item['price'],
-                count=item['count'],
-                location=item['location'],
-                store='Forum-auto',
-                data_update=datetime.now()
-            )
-            self.session.add(available)
-            try:
-                self.session.commit()
-            except:
-                self.session.rollback()
-                raise
-        else:
-            spare = Spare_parts(
-                article_number = item['article_number'],
-                brend = item['brend'],
-                name = item['name'],
-                category = item['category'],
-                another_info = item['another_info']
-            )
-            self.session.add(spare)
-            try:
-                self.session.commit()
-            except:
-                self.session.rollback()
-                raise
-            spare_id = self.session.query(Spare_parts.id).filter(item['article_number'] == Spare_parts.article_number).all()[0]
-            available = Available(
-                spare_parts_id=spare_id[0], 
-                price=item['price'],
-                count=item['count'],
-                location=item['location'],
-                store='Forum-auto',
-                data_update=datetime.now()
-            )
-            self.session.add(available)
-            try:
-                self.session.commit()
-            except:
-                self.session.rollback()
-                raise
     
 
     def parsing_elements(self, page):
@@ -152,9 +164,9 @@ class ForumParsing():
                         price = price,
                         count = count,
                         location = location
-                    ))
+                    ), 'Forum-auto')
                 except Exception as e:
-                    pass
+                    print(e)
             
          
     def parsing(self):
@@ -196,7 +208,7 @@ class ForumParsing():
             self.set_cookies(False)
             return self.parsing()
 
-class AutooptParsing():
+class AutooptParsing(BaseData):
 
     def __init__(self, url) -> None:
         self.cookies = self.set_cookies()
@@ -231,55 +243,6 @@ class AutooptParsing():
             crawl_runner.start()
             return self.set_cookies()        
 
-    def add_to_bd(self, item):
-        try:
-            spare_id = self.session.query(Spare_parts.id).filter(item['article_number'] == Spare_parts.article_number).all()[0]
-        except Exception as e:
-            spare_id = False
-        if spare_id:
-            available = Available(
-                spare_parts_id=spare_id[0], 
-                price=item['price'],
-                count=item['count'],
-                location=item['location'],
-                store='Autoopt',
-                data_update=datetime.now()
-            )
-            self.session.add(available)
-            try:
-                self.session.commit()
-            except:
-                self.session.rollback()
-                raise
-        else:
-            spare = Spare_parts(
-                article_number = item['article_number'],
-                brend = item['brend'],
-                name = item['name'],
-                category = item['category'],
-                another_info = item['another_info'],
-            )
-            self.session.add(spare)
-            try:
-                self.session.commit()
-            except:
-                self.session.rollback()
-                raise
-            spare_id = self.session.query(Spare_parts.id).filter(item['article_number'] == Spare_parts.article_number).all()[0]
-            available = Available(
-                spare_parts_id=spare_id[0], 
-                price=item['price'],
-                count=item['count'],
-                location=item['location'],
-                store='Autoopt',
-                data_update=datetime.now()
-            )
-            self.session.add(available)
-            try:
-                self.session.commit()
-            except:
-                self.session.rollback()
-                raise
     
     def page_parsing(self, response):
         soup = BeautifulSoup(response.text, 'lxml')
@@ -300,7 +263,7 @@ class AutooptParsing():
                     price = price,
                     count = count[0].replace('\n', '').replace('  ', ''),
                     location = 'null'
-                ))
+                ), 'AutoOpt')
                 self.count_success +=1
             except Exception as e:
                 pass
