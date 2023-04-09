@@ -5,7 +5,7 @@
   {% if spare %}
     <h3 class="h3">Ваш запрос: {{ spare }}</h3>
     <div class="btn-toolbar mb-2 mb-md-0">
-      <form action="/export_to_excel" method="GET">
+      <form action="/export_to_excel" method="post">
         <button type="submit" class="btn btn-sm btn-outline-secondary">Экспорт в .xls</button>
       </form>
     </div>

@@ -101,7 +101,8 @@ def search():
         similar_article = [spare.article_number for spare, avail in similar_list]
         if spare.article_number in similar_article:
             similar_list.pop(similar_article.index(spare.article_number))
-        
+    output_data.extend(desired_list)
+    output_data.extend(similar_list)    
     return render_template('result_search.html', 
                             spare = search,
                             desired_value=desired_list,
@@ -246,31 +247,25 @@ def view_latest_requests(count):
                            name_table='Последние запросы'
                            )
 
-@app.route('/export_to_excel', methods=['GET']) 
+@app.route('/export_to_excel', methods=['POST']) 
 def export_to_excel():
     try:
         if output_data:
-            data_dict = {
-                'Магазин': [],
-                'Артикль': [], 
-                'Бренд': [], 
-                'Название': [], 
-                'Цена': [], 
-                'Склад': [], 
-                'Количество': []
-            }
-            for row in output_data:
-                data_dict['Магазин'].append(row['store'])
-                data_dict['Артикль'].append(row['article_number'])
-                data_dict['Бренд'].append(row['brend'])
-                data_dict['Название'].append(row['name'])
-                data_dict['Цена'].append(row['price'])
-                data_dict['Склад'].append(row['location'])
-                data_dict['Количество'].append(row['count'])
-
-            df = pandas.DataFrame(data_dict)
-            df.to_excel('crossing_app/uploads/request_excel.xlsx')
+            df_spare = pandas.DataFrame(
+                data=[
+                    (avail.store, 
+                    spare.article_number, 
+                    spare.brend, 
+                    spare.name, 
+                    avail.price, 
+                    avail.location, 
+                    avail.count) for spare, avail in output_data],
+                columns=('store', 'article', 'brend', 'name', 'price', 'location', 'count')
+                )
+            df_spare.to_excel('crossing_app/uploads/request_excel.xlsx')
             return send_from_directory('uploads', 'request_excel.xlsx')
+        else:
+            return redirect(url_for('400'))
     except Exception as e:
         print(e)
         return redirect(url_for('400'))
