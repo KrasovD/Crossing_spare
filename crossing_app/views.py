@@ -1,5 +1,5 @@
 from flask import render_template, request, redirect, url_for, send_from_directory
-from sqlalchemy import func
+from sqlalchemy import func, select
 import time
 from datetime import timedelta
 import configparser
@@ -133,31 +133,30 @@ def database():
 
 @app.route('/database/download/<format>', methods=['POST'])
 def db_download(format):
-        if format == 'csv':
-            spare = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).yield_per(1000)
+        stmt = select(Spare_parts, Available).join(
+                Available, 
+                Spare_parts.id==Available.spare_parts_id
+                ).execution_options(yield_per=10)  
+        if format == 'csv':      
             with open('crossing_app/uploads/database.csv', 'w') as csv_db:
                 csvwriter = csv.writer(csv_db, delimiter=';')
                 csvwriter.writerow(['store', 'article_number','brend', 'name', 'price', 'location', 'count'])
-                for spare, avail in spare:
+                for spare, avail in db.session.execute(stmt):
                     csvwriter.writerow([avail.store, spare.article_number, spare.brend, spare.name, avail.price, avail.location, avail.count])
             return send_from_directory('uploads','database.csv')
         if format == 'xls':
-            spare = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id==Available.spare_parts_id).yield_per(1000)
-            data_dict = dict()
-            headers = ['Магазин', 'Артикул', 'Бренд', 'Название', 'Цена', 'Склад', 'Количество']
-            for head in headers:
-                data_dict[head] = list()
-            for spare, avail in spare:
-                data_dict['Магазин'].append(avail.store)
-                data_dict['Артикул'].append(spare.article_number)
-                data_dict['Бренд'].append(spare.brend)
-                data_dict['Название'].append(spare.name)
-                data_dict['Цена'].append(avail.price)
-                data_dict['Склад'].append(avail.location)
-                data_dict['Количество'].append(avail.count)
-
-            df = pandas.DataFrame(data_dict)
-            df.to_excel('crossing_app/uploads/database.xlsx')
+            df_spare = pandas.DataFrame(
+                data=[
+                    (avail.store, 
+                    spare.article_number, 
+                    spare.brend, 
+                    spare.name, 
+                    avail.price, 
+                    avail.location, 
+                    avail.count) for spare, avail in db.session.execute(stmt)],
+                columns=('store', 'article', 'brend', 'name', 'price', 'location', 'count')
+                )
+            df_spare.to_excel('crossing_app/uploads/database.xlsx')
             return send_from_directory('uploads', 'database.xlsx')
 
 
