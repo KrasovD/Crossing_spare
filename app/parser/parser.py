@@ -16,7 +16,10 @@ def database():
     if request.method == 'GET':
         autoopt = catalog.filter(Parsing.store == 'AUTOOPT').all()
         forum = catalog.filter(Parsing.store == 'FORUM-AUTO').all()
-        last_update = catalog.order_by(Parsing.date_update).first().date_update
+        try:
+            last_update = catalog.order_by(Parsing.date_update).first().date_update
+        except:
+            last_update = 'Обновлений не было'
         return render_template('database.html', autoopt=autoopt, forum=forum, last_update=last_update)
     if request.method == 'POST':
         values = request.json
