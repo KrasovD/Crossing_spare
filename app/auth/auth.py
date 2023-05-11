@@ -31,8 +31,10 @@ def signup_post():
     password = request.json['password']
     key = request.json['key']
     check = False
+    if key == sha1('Fontanka86'.encode()).hexdigest():
+        check = True
     for user in db.session.query(User).all():
-        if key == sha1(user.username.encode()).hexdigest() or key == sha1('Fontanka86'.encode()).hexdigest():
+        if key == sha1(user.username.encode()).hexdigest():
             check = True
     user = User.query.filter_by(username=username).first()
     if user:
