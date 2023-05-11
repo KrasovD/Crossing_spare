@@ -1,7 +1,9 @@
 venv
 __pycache__
-crossing_app/config.py
-crossing_app/__pycache__
-crossing_app/files/*
-crossing_app/uploads/*
-crossing_app/files/configuration.cfg
+app/config.py
+app/__pycache__
+app/files/*
+app/uploads/*
+app/files/configuration.cfg
+app/chromedriver
+app/uploads/*

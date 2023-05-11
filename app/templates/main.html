@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="{{url_for('static', filename='js/scripts.js')}}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block styles %}
+        {{ bootstrap.load_css() }}
+    {% endblock %}
+    <title>Кроссер</title>
+</head>
+<body>
+    {% include 'login_modal.html'%}
+    {% include 'signup_modal.html'%}
+    {% include 'header.html' %}
+    <div class="container-fluid">
+        <div class="row">
+                {% include 'sidebar.html' %}
+            <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4" id="main">
+                {% block content %}
+                
+                {% endblock %}
+            </main>
+            
+        </div>
+    </div>
+
+    {% block scripts %} {{ bootstrap.load_js() }} {% endblock %}
+</body>
+</html>

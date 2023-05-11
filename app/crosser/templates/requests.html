@@ -1,0 +1,36 @@
+{% extends 'main.html' %}
+
+{% block content %}
+<div class="d-flex mt-3">
+  <div class="dropdown">
+    <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+      Топ {{ count }}
+    </button>
+    <ul class="dropdown-menu">
+      <li><a class="dropdown-item" href="./10">Топ 10</a></li>
+      <li><a class="dropdown-item" href="./20">Топ 20</a></li>
+      <li><a class="dropdown-item" href="./50">Топ 50</a></li>
+    </ul>
+  </div>
+    <h3 class="h3 text-center ms-3">{{ name_table }}</h3>
+</div>
+<table class="table table-striped table-sm mt-3">
+    <thead class="table-light">
+      <tr>
+        <th scope="col">Запрос</th>
+        {% if name_table == 'Топ запросов (месяц)' %}
+        <th scope="col">Количество</th>
+        {% endif %}
+        {% if name_table == 'Последние запросы' %}
+        <th scope="col">Дата</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+        {% for data in top_requests %}
+      <tr>
+        <td>{{ data[0] }}</td>
+        <td>{{ data[1] }}</td>
+      </tr>
+      {% endfor %}
+{% endblock %}

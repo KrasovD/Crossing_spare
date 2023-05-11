@@ -1,0 +1,28 @@
+<div class="modal fade" id="signupModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title text-center" id="exampleModalLabel">Регистрация</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+          <div class="modal-body">
+            <p class="text-center text-danger" id="signupError"></p>
+            <div class="mb-3">
+              <label for="login" class="col-form-label text-center">Логин</label>
+              <input type="text" name="login" id="reglogin" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label for="password" class="col-form-label text-center">Пароль</label>
+              <input type="password" name="regpassword" id="regpassword" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label for="text" class="col-form-label text-center">Ключ</label>
+                <input type="text" name="regkey" id="regkey" class="form-control">
+              </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary" id="signupSubmit">Регистрация</button>
+          </div>
+      </div>
+    </div>
+  </div>

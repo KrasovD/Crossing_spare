@@ -1,0 +1,104 @@
+{% extends 'main.html' %}
+
+{% block content %}
+<button type="button" class="btn btn-dark mt-3" data-bs-toggle="modal" data-bs-target="#configuration">
+  Конфигурация
+</button>
+
+<!-- Modal -->
+<div class="modal fade" id="configuration" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="exampleModalLabel">Конфигурация</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-6">
+            <div class="card">
+              <div class="card-header">
+                <div class="h4 text-center"><strong id="auto">AutoOpt</strong></div>
+                <div class="row">
+                  <div class="col-4">
+                    Категория
+                  </div>
+                  <div class="col-4">
+                    Обновление
+                  </div>
+                </div>
+              </div>
+              <ul class="list-group list-group-flush">
+                {% for cat in autoopt %}
+                <li class="list-group-item">
+                  <div class="row">
+                    <div class="col-4">{{cat.category}}</div>
+                    <div class="col-4">{{cat.date_update}}</div>
+                    <div class="col-4">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" value="{{cat.value}}" role="switch" store="{{cat.store}}"
+                          name="{{cat.store}}-{{cat.category}}">
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                {%endfor%}
+              </ul>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="card">
+              <div class="card-header">
+                <div class="h4 text-center"><strong id="forum">Forum-auto</strong></div>
+                <div class="row">
+                  <div class="col-4">
+                    Категория
+                  </div>
+                  <div class="col-4">
+                    Обновление
+                  </div>
+                </div>
+              </div>
+              <ul class="list-group list-group-flush">
+                {% for cat in forum %}
+                <li class="list-group-item">
+                  <div class="row">
+                    <div class="col-4">{{cat.category}}</div>
+                    {% if cat.status == True %}
+                    <div class="col-4">Идет обновление</div>
+                    {% else %}
+                    <div class="col-4">{{cat.date_update}}</div>
+                    <div class="col-4">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" value="{{cat.value}}" role="switch" store="{{cat.store}}" id="flexSwitchCheckDefault">
+                      </div>
+                    </div>
+                    {%endif%}
+                  </div>
+                </li>
+                {%endfor%}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        <button type="button" id="update_bd" class="btn btn-primary">Начать обновление</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-secondary align-items-center d-flex mt-3" role="alert">
+  Последнее обновление: {{ last_update }}. Скачать в формате
+  <form action="/database/download/csv" method="post">
+    <button type="submit" class="btn btn-sm btn-outline-secondary ms-2"> .csv </button>
+  </form>
+  <form action="/database/download/xls" method="post">
+    <button type="submit" class="btn btn-sm btn-outline-secondary ms-2"> .xls </button>
+  </form>
+</div>
+
+
+{% endblock %}

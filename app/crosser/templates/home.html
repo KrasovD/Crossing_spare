@@ -1,0 +1,30 @@
+{% extends 'main.html' %}
+{% block content %}
+<div class="table-responsive">
+  <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h3 class="h3" id="spare_name"></h3>
+    <div class="btn-toolbar mb-2 mb-md-0" id="spare">
+      <form action="/export_to_excel" method="post">
+        <button type="submit" class="btn btn-sm btn-outline-secondary">Экспорт в .xls</button>
+      </form>
+    </div>
+  </div>
+  <table class="table table-striped table-sm">
+    <thead class="table-light">
+      <tr>
+        <th scope="col">Магазин</th>
+        <th scope="col">Артикул</th>
+        <th scope="col">Бренд</th>
+        <th scope="col">Название</th>
+        <th scope="col">Цена</th>
+        <th scope="col">Склад</th>
+        <th scope="col">Количество</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+    </tbody>
+  </table>
+
+</div>
+
+{% endblock %}
