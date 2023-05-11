@@ -10,7 +10,7 @@ from app.model import Available, Spare_parts, Parsing
 
 
 @bp.route('/database', methods=['GET', 'POST'])
-#@login_required
+@login_required
 def database():
     catalog = db.session.query(Parsing)
     if request.method == 'GET':

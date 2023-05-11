@@ -27,7 +27,7 @@ def index():
 
 
 @bp.route('/search')
-# @login_required
+@login_required
 def search():
     search = request.args.get('search')
 
@@ -65,7 +65,7 @@ def search():
 
 
 @bp.route("/scrape", methods=['GET', 'POST'])
-# @login_required
+@login_required
 def scrape():
     if request.method == 'POST':
 
@@ -130,7 +130,7 @@ def not_auth(e):
 
 
 @bp.route('/top_requests/<count>')
-# @login_required
+@login_required
 def view_top_requests(count):
     month_ago = datetime.today() - timedelta(days=30)
     data = db.session.query(Log.spare, func.count(Log.spare)).filter(Log.datetime > month_ago).group_by(
@@ -143,7 +143,7 @@ def view_top_requests(count):
 
 
 @bp.route('/latest_requests/<count>')
-# @login_required
+@login_required
 def view_latest_requests(count):
     month_ago = datetime.today() - timedelta(days=30)
     data = db.session.query(Log.spare, func.to_char(Log.datetime, 'DD.mm.yy HH24:MM:SS')).filter(
@@ -156,7 +156,7 @@ def view_latest_requests(count):
 
 
 @bp.route('/export_to_excel', methods=['POST'])
-# @login_required
+@login_required
 def export_to_excel():
     try:
         if output_data:
