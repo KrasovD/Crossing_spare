@@ -45,7 +45,7 @@ def signup_post():
     new_user.set_password(password=password)
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({'message': 'Успешно'})
+    return redirect('/')
 
 @bp.route('/logout', methods=['POST'])
 def logout():
