@@ -4,8 +4,7 @@ from datetime import datetime
 from flask import render_template, send_from_directory, request, redirect, url_for, jsonify
 from flask_login import login_required
 from sqlalchemy import select
-import pandas, csv, configparser
-import subprocess
+import pandas, csv
 from app.model import Available, Spare_parts, Parsing
 
 
@@ -14,21 +13,21 @@ from app.model import Available, Spare_parts, Parsing
 def database():
     catalog = db.session.query(Parsing)
     if request.method == 'GET':
-        autoopt = catalog.filter(Parsing.store == 'AUTOOPT').all()
-        forum = catalog.filter(Parsing.store == 'FORUM-AUTO').all()
         try:
-            last_update = catalog.order_by(Parsing.date_update).first().date_update
+            last_update = catalog.filter(Parsing.date_update!=None).order_by(Parsing.date_update.desc()).first().date_update
         except:
             last_update = 'Обновлений не было'
-        return render_template('database.html', autoopt=autoopt, forum=forum, last_update=last_update)
+        return render_template('database.html', catalog=catalog.all(), last_update=last_update)
     if request.method == 'POST':
-        values = request.json
-        if True in [cat.status for cat in catalog.all()]:
-            return jsonify({'data': False})
-        values = ';'.join(values)
-        process = subprocess.Popen(['venv/Scripts/python', 'app/parser/runparsing.py'], stdin=subprocess.PIPE)
-        process.stdin.write(values.encode())
-        return jsonify({})
+        values = request.get_json()
+        all_configuration = catalog.all()
+        for configuration in all_configuration:
+                if [configuration.store, configuration.value] not in values:
+                    configuration.status = False 
+                else:
+                    configuration.status = True
+        db.session.commit()
+        return jsonify({'data':True})
 
 @bp.route('/database/download/<format>', methods=['POST'])
 def db_download(format):

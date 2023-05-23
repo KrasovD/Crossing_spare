@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from sqlalchemy.orm import DeclarativeBase, Session
 from sqlalchemy import Column, VARCHAR, INTEGER, DATE, TEXT, ForeignKey
-from sqlalchemy import create_engine, update, insert, select
+from sqlalchemy import create_engine, update
 from time import sleep
 from datetime import datetime
 from app.config import *

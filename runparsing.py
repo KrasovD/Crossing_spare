@@ -4,13 +4,11 @@ from app.config import password_db
 
 session = Session(create_engine("postgresql+psycopg2://crossing_db:{}@localhost/crossing_db".format(password_db)))
 
-def run_parsing(value, Parser: classmethod):
+def run_parsing(value, Parser):
     try:
-        element = session.query(Parsing).filter(Parsing.value==value).first()
-        element.status = True
-        session.commit()
         parse = Parser(value)
         parse.parsing()
+        element = session.query(Parsing).filter(Parsing.value==value).first()
         element.date_update = datetime.now().date()
         element.count_all = parse.count_elements
         element.count_success = parse.count_success
@@ -22,14 +20,13 @@ def run_parsing(value, Parser: classmethod):
         session.commit()
     
 if __name__ == '__main__':
-    values = [value.split(':') for value in input().split(';')]
     while True:
-        if datetime.now().hour > 18:
+        if datetime.now().hour > 19:
+            values = session.query(Parsing).filter(Parsing.status==True).all()
             for value in values:
-                if value[0] == 'FORUM-AUTO':
-                    run_parsing(value[1], ForumParsing)
-                if value[1] == 'AUTOOPT':
-                    run_parsing(value[1], AutooptParsing)
-            break
+                if value.store == 'FORUM-AUTO':
+                    run_parsing(value.value, ForumParsing)
+                if value.store == 'AUTOOPT':
+                    run_parsing(value.value, AutooptParsing)
         sleep(500)
 

@@ -2,8 +2,7 @@ import scrapy
 from scrapy.crawler import CrawlerProcess
 from time import sleep
 from app import db
-from app.model import Spare_parts, Available
-from sqlalchemy import update
+from app.model import Spare_parts, Available, Crossing
 from datetime import datetime
 import requests
 import configparser
@@ -13,56 +12,63 @@ import traceback
 from app.config import *
 
 
-def add_to_bd(item):
+def add_to_bd(item, spare):
     # поиск в бд по артикулу
-    spare_id = db.session.query(Spare_parts.id).filter(
-        item['article_number'] == Spare_parts.article_number).all()
+    cross_id: Spare_parts = db.session.query(Spare_parts).filter(
+        Spare_parts.article_number==spare
+    ).first()
+    spare_id: Spare_parts = db.session.query(Spare_parts).filter(
+        item['article_number'] == Spare_parts.article_number
+    ).first()
     if spare_id:
         # если артикул найден, то поищем такую же позицию
         # в available по магазину и складу
-        available = update(Available).where(
-            Available.spare_parts_id == spare_id[0][0],
-            Available.location == item['location'],
-            Available.store == item['store']
-        ).values(
-            count=item['count'],
-            price=item['price'],
-            data_update=datetime.now()
-        ).return_defaults(Available.id)
-        r = db.session.execute(available)
-        if r.returned_defaults == None:
+        if item['article_number'] != spare and cross_id:
+            check_cross = db.session.query(Crossing).filter(
+                Crossing.id_spare==cross_id.id, Crossing.id_cross==spare_id.id
+            ).first()
+            if not check_cross:
+                cross = Crossing(id_spare=cross_id.id, id_cross=spare_id.id)
+                db.session.add(cross)
+        available: Available = db.session.query(Available).filter(
+            Available.spare_parts_id==spare_id.id,
+            Available.store==item['store'],
+            Available.location==item['location']
+        ).first()
+        if available and spare_id.brend==item['brend']:
+            available.count = item['count']
+            available.price = item['price']
+        else:
             available = Available(
-                spare_parts_id=spare_id[0][0],
+                spare_parts_id=spare_id.id,
                 price=item['price'],
                 count=item['count'],
                 location=item['location'],
                 store=item['store'],
                 data_update=datetime.now()
-            )
+                )
             db.session.add(available)
-        try:
-            db.session.commit()
-        except:
-            db.session.rollback()
-            raise
+        db.session.commit()
     else:
         spare = Spare_parts(
             article_number=item['article_number'],
             brend=item['brend'],
             name=item['name'],
-            category=item['category'],
             another_info=item['another_info'],
         )
         db.session.add(spare)
-        try:
-            db.session.commit()
-        except:
-            db.session.rollback()
-            raise
+        db.session.commit()
         spare_id = db.session.query(Spare_parts.id).filter(
-            item['article_number'] == Spare_parts.article_number).all()[0]
+            item['article_number'] == Spare_parts.article_number).first()
+        if item['article_number'] != spare and cross_id:
+            check_cross = db.session.query(Crossing).filter(
+                Crossing.id_spare==cross_id.id, Crossing.id_cross==spare_id.id
+            ).first()
+            if not check_cross:
+                cross = Crossing(id_spare=cross_id.id, id_cross=spare_id.id)
+                db.session.add(cross)
         available = Available(
-            spare_parts_id=spare_id[0],
+            spare_parts_id=spare_id.id,
             price=item['price'],
             count=item['count'],
             location=item['location'],
@@ -70,12 +76,7 @@ def add_to_bd(item):
             data_update=datetime.now()
         )
         db.session.add(available)
-        try:
-            db.session.commit()
-        except:
-            db.session.rollback()
-            raise
-
+        db.session.commit()
 
 def formation(data_spare, spare):
     desired_value = list()
@@ -90,11 +91,12 @@ def formation(data_spare, spare):
         try:
             if raw_string(spare) == raw_string(data['article_number']) or data['article_number'] == 'Отсутствует':
                 desired_value.append(data)
+
             else:
                 similar_value.append(data)
-            add_to_bd(data)
         except:
             pass
+        add_to_bd(data, spare)
     for data in desired_value:
         if data['article_number'] != 'Отсутствует':
             avail = True
@@ -167,8 +169,7 @@ class ForumParsing():
                         0].get_text(';').split(';')
                     count = count_loc[0]
                     location = count_loc[1]
-
-                    data.append(dict(
+                    item = dict(
                         article_number=article_number,
                         brend=brend,
                         name=name,
@@ -177,7 +178,8 @@ class ForumParsing():
                         price=price,
                         count=count,
                         location=location
-                    ))
+                    )
+                    data.append(item)
                 except Exception as e:
                     pass
         return data
@@ -237,25 +239,25 @@ class AutooptParsing():
             try:
                 article_number = elements.select('[class~=n-catalog-item__article]')[0].select(
                     '[class~=n-catalog-item__click-copy]')[0].get_text(';')
-                brend = elements.select('[class~=n-catalog-item__brand]')[0]
-                if brend.select('a') != []:
-                    brend = brend.select('a')[0].get_text()
+                brend = elements.select('[class~=n-catalog-item__brand]')[0].get_text(';')
                 name = elements.select(
                     '[class~=n-catalog-item__name-link]')[0].get_text()
                 price = elements.select(
                     '[class~=n-catalog-item__price-box]')[0].select('span')[1].get_text()
                 count = elements.select('[class~=n-catalog-item__count-box]')[
                     0].select('[class~=fake]')[0].get_text(';').split(';')
-                data.append(dict(
+                
+                item = dict(
                     article_number=article_number,
-                    brend=brend,
+                    brend = brend.split(';')[0].replace('\n', '').replace('  ', ''),
                     name=name.replace('\n', '').replace('  ', ''),
                     another_info='null',
                     store='Autoopt',
                     price=price,
                     count=count[0].replace('\n', '').replace('  ', ''),
                     location='null'
-                ))
+                )
+                data.append(item)
             except Exception as e:
                 print(traceback.format_exc())
         return data

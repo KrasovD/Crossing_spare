@@ -1,10 +1,10 @@
 <header class="navbar navbar-dark sticky-top flex-md-nowrap p-0 shadow py-1">
     <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-5 ml-3 text-center" href="/">Кроссинг запчастей</a>
-
-        <input class="form-control form-control-dark w-50 rounded-0 border-0" id="search" type="text"
+          <input class="form-control form-control-dark rounded-0 border-0" id="search" type="text"
             placeholder="Поиск" aria-label="Поиск">
-        <button type="button" id="btn_search" class="btn btn-dark">Поиск в БД</button>
-        <button type="button" id="btn_parsing" class="btn btn-dark">Парсинг</button>
+        <!--<button type="button" id="btn_search" class="btn btn-dark">Поиск в БД</button>-->
+        <button type="button" id="btn_parsing" class="btn btn-dark ms-1">Поиск</button>  
+        
     {% if current_user.is_authenticated %}
     <div class="d-flex">
         <p class="h4 mx-3 my-1" style="color: white;" data-bs-toggle="collapse" href="#collapseExample" role="button" aria-expanded="false" aria-controls="collapseExample">

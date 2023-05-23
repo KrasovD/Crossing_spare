@@ -1,25 +1,4 @@
-'''autokontinent_category = [
-        ('Замки мотоцепей', 'https://autokontinent.ru/catalog_lock.php'),
-        ('Инструменты', 'https://autokontinent.ru/catalog_tools.php'),
-        ('Автохимия', 'https://autokontinent.ru/catalog_chemical.php'),
-        ('Аккумуляторы', 'https://autokontinent.ru/catalog_battery.php'),
-        ('Аксессуары', 'https://autokontinent.ru/catalog_accessories.php'),
-        ('Багажники', 'https://autokontinent.ru/catalog_rack.php'),
-        ('Лампы', 'https://autokontinent.ru/catalog_lamp.php'),
-        ('Моторные масла', 'https://autokontinent.ru/catalog_oil.php'),
-        ('Мотоцепи', 'https://autokontinent.ru/catalog_chain.php'),
-        ('Омывающие жидкости', 'https://autokontinent.ru/catalog_washer.php'),
-        ('Охлаждающие жидкости', 'https://autokontinent.ru/catalog_antifreeze.php'),
-        ('Тормозные жидкости', 'https://autokontinent.ru/catalog_dot.php'),
-        ('Фаркопы', 'https://autokontinent.ru/catalog_towbar.php'),
-        ('Хомуты металлические', 'https://autokontinent.ru/catalog_mclamp.php'),
-        ('Хомуты пластиковые', 'https://autokontinent.ru/catalog_pclamp.php'),
-        ('Щетки стеклоочистителя', 'https://autokontinent.ru/catalog_wiper.php'),
-        ('Эксплуатационные масла и жидкости', 'https://autokontinent.ru/catalog_liquid.php'),
-    ]
-'''
-
-insert into parsing (category, value, store)
+insert_autoopt = '''insert into parsing (category, value, store)
 values 
 ('AUTOOPT', 'Отечественные грузовики', 'https://www.autoopt.ru/catalog/otechestvennye_gruzoviki/'),
         ('AUTOOPT', 'Европейские грузовики', 'https://www.autoopt.ru/catalog/evropeyskie_gruzoviki/'),
@@ -31,10 +10,11 @@ values
         ('AUTOOPT', 'Тракторы и спецтехника', 'https://www.autoopt.ru/catalog/traktory_i_spetstekhnika/'),
         ('AUTOOPT', 'Коммунальная техника', 'https://www.autoopt.ru/catalog/kommunalnaya_tekhnika/'),
         ('AUTOOPT', 'Двигатели', 'https://www.autoopt.ru/catalog/dvigateli/'),
-        ('AUTOOPT', 'Кабины, кузова и рамы', 'https://www.autoopt.ru/catalog/kabiny_kuzova_i_ramy/')
+        ('AUTOOPT', 'Кабины, кузова и рамы', 'https://www.autoopt.ru/catalog/kabiny_kuzova_i_ramy/');
+'''
 
-
-forum_category = [
+insert_forum = '''insert into parsing (category, value, store)
+values 
         ('FORUM-AUTO', 'Аккумуляторы', '81'),
         ('FORUM-AUTO', 'Аксессуары', '83'),
         ('FORUM-AUTO', 'Антифриз', '106'),
@@ -52,8 +32,17 @@ forum_category = [
         ('FORUM-AUTO', 'Щетки стеклоочистителей ', '92'),
         ('FORUM-AUTO', 'Электроника', '112'),
         ('FORUM-AUTO', 'Незамерзайка', '110'),
-        ('FORUM-AUTO', 'Средства по уходу за авто', '115'),
-    ]
+        ('FORUM-AUTO', 'Средства по уходу за авто', '115');
+'''
 
-import app.model as model
-from sqlalchemy import insert
+from sqlalchemy import insert, select, create_engine, text
+from app.config import password_db
+engine = create_engine("postgresql+psycopg2://crossing_db:{}@localhost/crossing_db".format(password_db))
+
+with engine.connect() as conn:
+    item = text(insert_autoopt)
+    item2 = text(insert_forum)
+    conn.execute(item)
+    conn.execute(item2) 
+
+

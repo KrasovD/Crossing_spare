@@ -1,4 +1,6 @@
 from app import db, login_manager
+from datetime import datetime
+from sqlalchemy import select, update
 from flask_login import UserMixin
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -44,7 +46,6 @@ class Spare_parts(db.Model):
     brend = db.Column(db.VARCHAR(300), nullable=True)
     category = db.Column(db.VARCHAR(200), nullable=True)
 
-
 class Available(db.Model):
     id = db.Column(db.INTEGER, unique=True,
                    primary_key=True, autoincrement=True)
@@ -54,6 +55,12 @@ class Available(db.Model):
     location = db.Column(db.VARCHAR(100), nullable=True)
     data_update = db.Column(db.DATE)
     store = db.Column(db.VARCHAR(100), nullable=True)
+
+class Crossing(db.Model):
+    id = db.Column(db.INTEGER, unique=True,
+                   primary_key=True, autoincrement=True)
+    id_spare = db.Column(db.ForeignKey('spare_parts.id'))
+    id_cross = db.Column(db.ForeignKey('spare_parts.id'))
 
 class Parsing(db.Model):
     id = db.Column(db.INTEGER, unique=True,

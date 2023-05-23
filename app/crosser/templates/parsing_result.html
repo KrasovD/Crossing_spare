@@ -2,7 +2,9 @@
 <div class="table-responsive">
   <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h3 class="h3">Ваш запрос: {{ spare }}</h3>
+    {%if not db_search %}
     <h4 class="h4">Время выполнения: {{ time_request }} сек</h4>
+    {%endif%}
     <div class="btn-toolbar mb-2 mb-md-0">
       <form action="/export_to_excel" method="POST">
         <button type="submit" class="btn btn-sm btn-outline-secondary">Экспорт в .xls</button>
@@ -13,12 +15,15 @@
         <thead class="table-light">
           <tr>
             <th scope="col">Магазин</th>
-            <th scope="col">Артикль</th>
+            <th scope="col">Артикул</th>
             <th scope="col">Бренд</th>
             <th scope="col">Название</th>
             <th scope="col">Цена</th>
             <th scope="col">Склад</th>
             <th scope="col">Количество</th>
+            {%if db_search%}
+            <th scope="col">Обновление</th>
+            {%endif%}
           </tr>
         </thead>
         <tbody>
@@ -31,6 +36,9 @@
             <td>{{ data['price'] }}</td>
             <td>{{ data['location'] }}</td>
             <td>{{ data['count'] }}</td>
+            {% if db_search %}
+            <td>{{ data['data_update'] }}</td>
+            {%endif%}
           </tr>
           {% endfor %}
           {% for data in similar_value %}
@@ -42,6 +50,9 @@
             <td>{{ data['price'] }}</td>
             <td>{{ data['location'] }}</td>
             <td>{{ data['count'] }}</td>
+            {% if db_search %}
+            <td>{{ data['data_update'] }}</td>
+            {%endif%}
           </tr>
           {% endfor %}
     </table>

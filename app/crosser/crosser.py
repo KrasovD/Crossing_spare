@@ -1,22 +1,21 @@
-from flask import render_template, request, redirect, abort, send_from_directory, jsonify
+from flask import render_template, request, abort, send_from_directory, jsonify
 from flask_login import login_required
 from app.crosser import bp
 from app import db
-from sqlalchemy import func, select, update
+from sqlalchemy import func
 from app.crosser.spiders import formation, ForumParsing, AutooptParsing
 import time
 from datetime import timedelta, datetime
-from app.model import Spare_parts, Available, Log
+from app.model import Spare_parts, Available, Log, Crossing
 import pandas
-from threading import Thread
 
 output_data = list()
+
 
 def time_to_function(function):
     def wrapped(*args):
         start_time = time.perf_counter_ns()
         res = function(*args)
-        print(time.perf_counter_ns() - start_time)
         return res
     return wrapped
 
@@ -26,87 +25,76 @@ def index():
     return render_template("home.html")
 
 
-@bp.route('/search')
-@login_required
-def search():
-    search = request.args.get('search')
-
-    def format_text(text):
-        return text.replace('/', '_').replace('-', '_')
-    similar_list = ''
-    desired_list = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id == Available.spare_parts_id).filter(
-        Spare_parts.article_number.like('{}'.format(format_text(search)))).limit(50).all()
-    if desired_list != []:
-        db.session.add(Log(spare=search))
-        db.session.commit()
-    for spare, avail in desired_list:
-        if spare.name == 'null':
-            similar_list = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id == Available.spare_parts_id).filter(
-                Spare_parts.category == spare.category, func.similarity(Spare_parts.another_info, spare.another_info) > 0.5).limit(15).all()
-        else:
-            # db.session.execute('pg_trgm.similarity_threshold (0.7)')
-            similar_list = db.session.query(Spare_parts, Available).join(Available, Spare_parts.id == Available.spare_parts_id).filter(
-                Spare_parts.category == spare.category, func.similarity(Spare_parts.name, spare.name) > 0.5).limit(15).all()
-
-        similar_article = [
-            spare.article_number for spare, avail in similar_list]
-        if spare.article_number in similar_article:
-            similar_list.pop(similar_article.index(spare.article_number))
-    output_data.extend(desired_list)
-    output_data.extend(similar_list)
-    return jsonify({
-        'data': render_template('search_result.html',
-                                spare=search,
-                                desired_value=desired_list,
-                                similar_value=similar_list
-                                ),
-        'spare': search
-    })
-
 
 @bp.route("/scrape", methods=['GET', 'POST'])
 @login_required
 def scrape():
     if request.method == 'POST':
+        search = request.json['search']
+        db_search = db.session.query(Spare_parts, Crossing).join(Crossing, Spare_parts.id == Crossing.id_spare).filter(
+            Spare_parts.article_number == search).all()
+        if db_search:
+            similar_value = []
+            start_time = time.perf_counter()
+            desired_value = db.session.query(
+                Spare_parts.brend,
+                Spare_parts.name,
+                Spare_parts.article_number,
+                Available.count,
+                Available.location,
+                Available.price,
+                Available.store,
+                Available.data_update).join(Available, Spare_parts.id == Available.spare_parts_id).filter(
+                Spare_parts.article_number == search).order_by(Available.price).all()
+            desired_check = [value.store for value in desired_value]
+            if 'Forum-auto' not in desired_check:
+                desired_value.append({'store': 'Forum-auto', 'article_number':'Отсутствует'})
+            if 'Autoopt' not in desired_check:
+                desired_value.append({'store': 'Autoopt', 'article_number':'Отсутствует'})
+            for spare, cross in db_search:
+                similar_value.extend(db.session.query(
+                    Spare_parts.brend,
+                    Spare_parts.name,
+                    Spare_parts.article_number,
+                    Available.count,
+                    Available.location,
+                    Available.price,
+                    Available.store,
+                    Available.data_update).join(Available, Spare_parts.id == Available.spare_parts_id).filter(
+                    Spare_parts.id == cross.id_cross).order_by(Available.price).all())
+            time_request = time.perf_counter() - start_time
+            if desired_value:
+                log = Log(
+                    spare=search
+                )
+                db.session.add(log)
+                db.session.commit()
 
-        spare = request.json['search']
-        output_data.clear()
-
-        def parse_forum():
-            forum = ForumParsing(spare)
+        else:
+            output_data.clear()
+            forum = ForumParsing(search)
+            autoopt = AutooptParsing(search)
+            start_time = time.perf_counter()
             [output_data.append(el) for el in forum.parsing()]
-
-        def parse_autoot():
-            autoopt = AutooptParsing(spare)
             [output_data.append(el) for el in autoopt.parsing()]
-        # thread1 = Thread(target=parse_forum)
-        # thread2 = Thread(target=parse_autoot)
-        start_time = time.perf_counter()
-        parse_autoot()
-        parse_forum()
-        '''thread1.run()
-        thread2.run()
-        while True:
-            if thread1.is_alive() == True and thread2.is_alive() == True:
-                time.sleep(0.2)
-            else:
-                break'''
-        time_request = time.perf_counter() - start_time
 
-        desired_value, similar_value, avail = formation(
-            data_spare=output_data, spare=spare)
-        if avail:
-            log = Log(
-                spare=spare
-            )
-            db.session.add(log)
-            db.session.commit()
+            time_request = time.perf_counter() - start_time
+
+            desired_value, similar_value, avail = formation(
+                data_spare=output_data, spare=search)
+            if avail:
+                log = Log(
+                    spare=search
+                )
+                db.session.add(log)
+                db.session.commit()
         return jsonify({
             'data': render_template(
                 'parsing_result.html',
                 time_request=round(
                     time_request, 1),
-                spare=spare,
+                spare=search,
+                db_search = db_search,
                 desired_value=desired_value,
                 similar_value=similar_value)
         })

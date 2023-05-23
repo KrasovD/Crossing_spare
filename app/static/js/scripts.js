@@ -122,7 +122,7 @@ $(document).ready(function () {
     $('#update_bd').on('click', function() {
         var values = [];
         $.each($("input:checked"), function(){
-            var str = $(this).attr('store') + ":" + $(this).val();
+            var str = [$(this).attr('store'), $(this).val()];
             values.push(str);
         });
 
@@ -137,7 +137,7 @@ $(document).ready(function () {
                     alert('Идет загрузка')
                 }
                 else{
-                    $('#configuration').modal('hide');
+                    window.location.href = '/database'
                 }
             }
         });
