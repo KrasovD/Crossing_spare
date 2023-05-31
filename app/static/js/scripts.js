@@ -1,5 +1,5 @@
 $(document).ready(function () {
-    $('#loginSubmit').on('click', function (e) {
+    function auth_login(){
         var login = $('#login').val();
         var password = $('#password').val();
 
@@ -18,9 +18,9 @@ $(document).ready(function () {
                 }
             });
         }
-    });
+    }
 
-    $('#signupSubmit').on('click', function (e) {
+    function auth_signup(){
         var login = $('#reglogin').val();
         var password = $('#regpassword').val();
         var key = $('#regkey').val();
@@ -42,7 +42,8 @@ $(document).ready(function () {
                 },
             });
         }
-    });
+    }
+
     function search_ditails() {
         var search = $('#search').val()
         var page = window.location.pathname
@@ -104,18 +105,40 @@ $(document).ready(function () {
         }
     }
 
+
+    $('#loginSubmit').on('click', function (e) {
+        auth_login();
+    });
+
+    $('#signupSubmit').on('click', function (e) {
+        auth_signup();
+    });
+
+    $('#password').keypress(function (e) {
+        var key = e.which;
+        if (key == 13)  // the enter key code
+        {
+            auth_login();
+        };
+    });
+
+    $('#regpassword').keypress(function (e) {
+        var key = e.which;
+        if (key == 13)  // the enter key code
+        {
+            auth_signup();
+        };
+    });
+
     $('#btn_parsing').click(function (e) { 
         parsing_details();
     });
 
-    $('#btn_search').on('click', function (e) {
-        search_ditails();
-    });
     $('#search').keypress(function (e) {
         var key = e.which;
         if (key == 13)  // the enter key code
         {
-            search_ditails();
+            parsing_details();
         }
     });
 

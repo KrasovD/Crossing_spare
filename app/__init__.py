@@ -15,7 +15,11 @@ bootstrap = Bootstrap5()
 def create_app():
     app.config['SECRET_KEY'] = os.urandom(32)
     app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://crossing_db:{password_db}@localhost:5432/crossing_db"
-
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_size': 10,
+        'pool_recycle': 60,
+        'pool_pre_ping': True
+    }
     db.init_app(app)
     bootstrap.init_app(app)
     #csrf.init_app(app)
