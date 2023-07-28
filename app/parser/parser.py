@@ -1,11 +1,11 @@
 from app.parser import bp
 from app import db 
-from datetime import datetime
-from flask import render_template, send_from_directory, request, redirect, url_for, jsonify
+from flask import render_template, send_from_directory, request, jsonify
 from flask_login import login_required
 from sqlalchemy import select
-import pandas, csv, configparser
+import pandas, csv
 import subprocess
+import os
 from app.model import Available, Spare_parts, Parsing
 
 
@@ -36,7 +36,11 @@ def db_download(format):
                 Available, 
                 Spare_parts.id==Available.spare_parts_id
                 ).execution_options(yield_per=10)  
-        if format == 'csv':      
+        if format == 'csv':
+            try:
+                os.mkdir('app/uploads')   
+            except:
+                pass 
             with open('app/uploads/database.csv', 'w', encoding='utf-8') as csv_db:
                 csvwriter = csv.writer(csv_db, delimiter=';')
                 csvwriter.writerow(['store', 'article_number','brend', 'name', 'price', 'location', 'count'])
@@ -58,7 +62,11 @@ def db_download(format):
                     avail.count) for spare, avail in db.session.execute(stmt)],
                 columns=('store', 'article', 'brend', 'name', 'price', 'location', 'count')
                 )
-            df_spare.to_excel('crossing_app/uploads/database.xlsx')
+            try:
+                os.mkdir('app/uploads')  
+            except:
+                pass
+            df_spare.to_excel('app/uploads/database.xlsx')
             return send_from_directory('uploads', 'database.xlsx')
 
 

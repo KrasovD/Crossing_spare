@@ -25,8 +25,10 @@ def create_app():
         from app.crosser import bp as crosser_bp
         from app.parser import bp as parser_bp
         from app.auth import bp as auth_bp
+        from app.api import bp as api_bp
         app.register_blueprint(crosser_bp)
         app.register_blueprint(parser_bp)
         app.register_blueprint(auth_bp)
+        app.register_blueprint(api_bp)
 
         return app
