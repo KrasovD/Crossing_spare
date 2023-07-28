@@ -4,7 +4,6 @@ from flask import render_template, send_from_directory, request, jsonify
 from flask_login import login_required
 from sqlalchemy import select
 import pandas, csv
-import subprocess
 import os
 from app.model import Available, Spare_parts, Parsing
 
